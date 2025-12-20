@@ -188,7 +188,7 @@ Same request body. Returns SSE stream.
 
 ## P3: Legal Advisor
 
-Provides legal advice and answers legal questions.
+Provides legal advice and answers legal questions. Supports multi-turn conversations.
 
 ### Standard Endpoint
 
@@ -202,7 +202,11 @@ Content-Type: application/json
 {
   "message": "string (required) - The legal question",
   "jurisdiction": "string (optional) - FR | BE | LU | DE (default: FR)",
-  "language": "string (optional) - fr | en | de (default: fr)"
+  "language": "string (optional) - fr | en | de (default: fr)",
+  "conversationHistory": [
+    {"role": "user", "content": "Previous question"},
+    {"role": "assistant", "content": "Previous answer"}
+  ]
 }
 ```
 
@@ -451,11 +455,15 @@ All `/stream` endpoints return Server-Sent Events (SSE).
 
 ### SSE Format
 
-Each event follows SSE format:
+Events are sent as JSON with a `type` field:
 ```
-event: event_type
-data: {"json": "payload"}
+data: {"type": "started", "message": "Starting agent..."}
 
+data: {"type": "content", "content": "text chunk"}
+
+data: {"type": "completed", "result": "full response"}
+
+data: [DONE]
 ```
 
 ### JavaScript Implementation
@@ -484,46 +492,51 @@ async function streamLegalAdvice(message, jurisdiction = 'FR') {
     buffer = lines.pop(); // Keep incomplete line in buffer
 
     for (const line of lines) {
-      if (line.startsWith('event: ')) {
-        const eventType = line.slice(7);
-        // Next line should be data
-      }
       if (line.startsWith('data: ')) {
-        const data = JSON.parse(line.slice(6));
-        handleEvent(eventType, data);
+        const data = line.slice(6);
+        if (data === '[DONE]') {
+          // Stream finished
+          return;
+        }
+        try {
+          const event = JSON.parse(data);
+          handleEvent(event);
+        } catch {
+          // Skip invalid JSON
+        }
       }
     }
   }
 }
 
-function handleEvent(eventType, data) {
-  switch (eventType) {
+function handleEvent(event) {
+  switch (event.type) {
     case 'started':
-      console.log('Agent started:', data.agent);
+      console.log('Agent started');
       showLoadingState();
       break;
 
     case 'tool_call':
-      console.log('Calling tool:', data.tool);
-      showToolProgress(data.tool); // e.g., "Searching legal database..."
+      console.log('Calling tool:', event.tool);
+      showToolProgress(event.tool); // e.g., "Searching legal database..."
       break;
 
     case 'tool_result':
-      console.log('Tool completed:', data.tool);
+      console.log('Tool completed:', event.tool);
       hideToolProgress();
       break;
 
     case 'content':
-      appendContent(data.content); // Stream content to UI
+      appendContent(event.content); // Stream content to UI
       break;
 
     case 'completed':
-      setFinalResult(data.result);
+      setFinalResult(event.result);
       hideLoadingState();
       break;
 
     case 'error':
-      showError(data.error);
+      showError(event.error);
       break;
   }
 }
@@ -566,7 +579,6 @@ export function useLegalStream() {
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let buffer = '';
-      let currentEvent = '';
 
       while (true) {
         const { done, value } = await reader.read();
@@ -577,29 +589,36 @@ export function useLegalStream() {
         buffer = lines.pop();
 
         for (const line of lines) {
-          if (line.startsWith('event: ')) {
-            currentEvent = line.slice(7);
-          } else if (line.startsWith('data: ') && currentEvent) {
-            const data = JSON.parse(line.slice(6));
-
-            switch (currentEvent) {
-              case 'tool_call':
-                setCurrentTool(data.tool);
-                break;
-              case 'tool_result':
-                setCurrentTool(null);
-                break;
-              case 'content':
-                setContent(prev => prev + data.content);
-                break;
-              case 'completed':
-                setContent(data.result);
-                break;
-              case 'error':
-                setError(data.error);
-                break;
+          if (line.startsWith('data: ')) {
+            const data = line.slice(6);
+            if (data === '[DONE]') {
+              setIsLoading(false);
+              return;
             }
-            currentEvent = '';
+            try {
+              const event = JSON.parse(data);
+
+              switch (event.type) {
+                case 'tool_call':
+                  setCurrentTool(event.tool);
+                  break;
+                case 'tool_result':
+                case 'tool_end':
+                  setCurrentTool(null);
+                  break;
+                case 'content':
+                  setContent(prev => prev + event.content);
+                  break;
+                case 'completed':
+                  setContent(event.result);
+                  break;
+                case 'error':
+                  setError(event.error);
+                  break;
+              }
+            } catch {
+              // Skip invalid JSON
+            }
           }
         }
       }
@@ -764,6 +783,19 @@ curl -X POST "https://aoli-juridique-dev-func.azurewebsites.net/api/p5/draft" \
     "jurisdiction": "FR"
   }'
 ```
+
+---
+
+## Changelog
+
+### v3.3.0 (2025-12-18)
+- **True real-time streaming**: Migrated to FastAPI extension - events now stream progressively as AI generates them
+- P3: Added `conversationHistory` support for multi-turn conversations
+- SSE format simplified: events use `data:` with `type` field (no `event:` prefix)
+
+### v3.0.0 (2025-12-18)
+- Added P3 Legal Advisor, P4 Legal Correspondence, P5 Procedural Documents
+- Migrated to Microsoft Agent Framework
 
 ---
 
