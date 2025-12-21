@@ -15,6 +15,40 @@ import { P5_DEMO_DATA } from "@/lib/demo-data";
 const API_BASE = process.env.NEXT_PUBLIC_API_URL;
 const API_KEY = process.env.NEXT_PUBLIC_API_KEY;
 
+// Extract JSON from content that may have text before/after
+function extractJSON(content: string): { json: Record<string, unknown> | null; textBefore: string; textAfter: string } {
+  // Find the JSON object in the content
+  const jsonStart = content.indexOf('{');
+  if (jsonStart === -1) return { json: null, textBefore: content, textAfter: "" };
+
+  // Find matching closing brace
+  let depth = 0;
+  let jsonEnd = -1;
+  for (let i = jsonStart; i < content.length; i++) {
+    if (content[i] === '{') depth++;
+    else if (content[i] === '}') {
+      depth--;
+      if (depth === 0) {
+        jsonEnd = i;
+        break;
+      }
+    }
+  }
+
+  if (jsonEnd === -1) return { json: null, textBefore: content, textAfter: "" };
+
+  const jsonStr = content.substring(jsonStart, jsonEnd + 1);
+  const textBefore = content.substring(0, jsonStart).trim();
+  const textAfter = content.substring(jsonEnd + 1).trim();
+
+  try {
+    const parsed = JSON.parse(jsonStr);
+    return { json: parsed, textBefore, textAfter };
+  } catch {
+    return { json: null, textBefore: content, textAfter: "" };
+  }
+}
+
 export default function P5Page() {
   const {
     documentType,
@@ -124,23 +158,27 @@ ${legalBasis}
           if (data === "[DONE]") {
             // If we have structured JSON that wasn't handled by completed event
             if (isStructuredResponse && fullContent) {
-              try {
-                const parsed = JSON.parse(fullContent.trim());
-                if (parsed.clarifyingQuestions && parsed.clarifyingQuestions.length > 0) {
-                  const questionsText = parsed.clarifyingQuestions.join("\n\n");
+              const { json: parsed, textBefore } = extractJSON(fullContent);
+              if (parsed) {
+                // Add intro text as conversation if present
+                if (textBefore) {
+                  addConversation({ role: "assistant", content: textBefore });
+                }
+
+                if (parsed.clarifyingQuestions && Array.isArray(parsed.clarifyingQuestions) && parsed.clarifyingQuestions.length > 0) {
+                  const questionsText = (parsed.clarifyingQuestions as string[]).join("\n\n");
                   addConversation({ role: "assistant", content: questionsText });
-                  setClarifyingQuestions(parsed.clarifyingQuestions);
+                  setClarifyingQuestions(parsed.clarifyingQuestions as string[]);
                   if (parsed.proceduralDocument) {
                     setStructuredResult(parsed.proceduralDocument);
                   }
                 } else if (parsed.proceduralDocument) {
                   setStructuredResult(parsed.proceduralDocument);
-                  if (parsed.proceduralDocument.document && typeof parsed.proceduralDocument.document === "string") {
-                    setResult(parsed.proceduralDocument.document);
+                  const doc = parsed.proceduralDocument as Record<string, unknown>;
+                  if (doc.document && typeof doc.document === "string") {
+                    setResult(doc.document);
                   }
                 }
-              } catch {
-                // Not valid JSON, ignore
               }
             }
             setLoading(false);
@@ -155,9 +193,9 @@ ${legalBasis}
               case "content":
                 if (event.content) {
                   fullContent += event.content;
-                  // Check if this looks like JSON (structured response)
+                  // Check if content contains JSON (could be embedded in text)
                   const trimmed = fullContent.trim();
-                  if (trimmed.startsWith("{")) {
+                  if (trimmed.startsWith("{") || trimmed.includes('"phase"') || trimmed.includes('"proceduralDocument"')) {
                     isStructuredResponse = true;
                     // Don't update result - will be handled by completed event
                   } else {
@@ -185,22 +223,17 @@ ${legalBasis}
               case "completed":
                 // Handle clarification or final result
                 if (event.result) {
-                  // If result is a string, try to parse it as JSON first
+                  // If result is a string, try to extract JSON from it
                   let resultObj = event.result;
+                  let introText = "";
+
                   if (typeof event.result === "string") {
-                    try {
-                      const trimmed = event.result.trim();
-                      if (trimmed.startsWith("{")) {
-                        resultObj = JSON.parse(trimmed);
-                      } else {
-                        // Plain text result (not JSON)
-                        setResult(event.result);
-                        setLoading(false);
-                        setCurrentTool(null);
-                        return;
-                      }
-                    } catch {
-                      // Not valid JSON, treat as plain text
+                    const { json: extracted, textBefore } = extractJSON(event.result);
+                    if (extracted) {
+                      resultObj = extracted;
+                      introText = textBefore;
+                    } else {
+                      // No JSON found, treat as plain text
                       setResult(event.result);
                       setLoading(false);
                       setCurrentTool(null);
@@ -208,8 +241,13 @@ ${legalBasis}
                     }
                   }
 
+                  // Add intro text as conversation if present
+                  if (introText) {
+                    addConversation({ role: "assistant", content: introText });
+                  }
+
                   // Now handle the parsed object
-                  if (resultObj.clarifyingQuestions && resultObj.clarifyingQuestions.length > 0) {
+                  if (resultObj.clarifyingQuestions && Array.isArray(resultObj.clarifyingQuestions) && resultObj.clarifyingQuestions.length > 0) {
                     // It's a clarification phase
                     const questionsText = resultObj.clarifyingQuestions.join("\n\n");
                     addConversation({
@@ -482,6 +520,7 @@ ${legalBasis}
             structuredResult={structuredResult}
             isStreaming={isLoading}
             isLoading={isLoading}
+            hasPendingQuestions={hasClarifications}
           />
         </div>
       </div>

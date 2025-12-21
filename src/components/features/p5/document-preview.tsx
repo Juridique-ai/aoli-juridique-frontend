@@ -91,9 +91,10 @@ interface DocumentPreviewProps {
   structuredResult?: ProceduralDocument | null;
   isStreaming: boolean;
   isLoading: boolean;
+  hasPendingQuestions?: boolean;
 }
 
-export function DocumentPreview({ content, structuredResult, isStreaming, isLoading }: DocumentPreviewProps) {
+export function DocumentPreview({ content, structuredResult, isStreaming, isLoading, hasPendingQuestions = false }: DocumentPreviewProps) {
   const displayContent = structuredResult?.document || content;
 
   const handleCopy = async () => {
@@ -317,12 +318,14 @@ export function DocumentPreview({ content, structuredResult, isStreaming, isLoad
             </div>
           )}
 
-          {/* Note about pending document */}
-          <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg p-4 text-sm">
-            <p className="text-amber-800 dark:text-amber-200">
-              Le document final sera généré après clarification des questions en attente.
-            </p>
-          </div>
+          {/* Note about pending document - only show if there are pending questions */}
+          {hasPendingQuestions && (
+            <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg p-4 text-sm">
+              <p className="text-amber-800 dark:text-amber-200">
+                Le document final sera généré après clarification des questions en attente.
+              </p>
+            </div>
+          )}
         </CardContent>
       </Card>
     );
