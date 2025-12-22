@@ -33,9 +33,18 @@ jobs:
           NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
           NEXT_PUBLIC_API_KEY: ${{ secrets.NEXT_PUBLIC_API_KEY }}
 
+      - name: Prepare standalone deployment
+        run: |
+          # Copy static assets to standalone directory
+          cp -r .next/static .next/standalone/.next/static
+          cp -r public .next/standalone/public
+          # Create package.json for Azure startup
+          echo '{"scripts":{"start":"node server.js"}}' > .next/standalone/package.json
+
       - name: Create deployment package
         run: |
-          zip -r deploy.zip . -x "node_modules/*" -x ".git/*" -x ".github/*"
+          cd .next/standalone
+          zip -r ../../deploy.zip .
 
       - name: Azure Login
         uses: azure/login@v2
