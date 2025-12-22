@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Scale } from "lucide-react";
 import { ThemeToggle } from "./theme-toggle";
+import { UserMenu } from "@/components/auth/user-menu";
 
 export function Header() {
   return (
@@ -14,6 +15,7 @@ export function Header() {
         </Link>
         <nav className="flex items-center gap-4">
           <ThemeToggle />
+          <UserMenu />
         </nav>
       </div>
     </header>

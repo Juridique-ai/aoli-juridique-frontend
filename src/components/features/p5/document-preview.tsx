@@ -83,7 +83,24 @@ interface ProceduralDocument {
     };
     provisionalEnforcement?: boolean;
   };
-  document?: string;
+  document?: {
+    header?: {
+      court?: string;
+      caseNumber?: string;
+      parties?: string;
+    };
+    body?: {
+      factsSection?: string;
+      discussionSection?: string;
+      dispositif?: string;
+    };
+    signature?: {
+      date?: string;
+      location?: string;
+      counsel?: string;
+    };
+    fullText?: string;
+  };
 }
 
 interface DocumentPreviewProps {
@@ -91,11 +108,11 @@ interface DocumentPreviewProps {
   structuredResult?: ProceduralDocument | null;
   isStreaming: boolean;
   isLoading: boolean;
-  hasPendingQuestions?: boolean;
 }
 
-export function DocumentPreview({ content, structuredResult, isStreaming, isLoading, hasPendingQuestions = false }: DocumentPreviewProps) {
-  const displayContent = structuredResult?.document || content;
+export function DocumentPreview({ content, structuredResult, isStreaming, isLoading }: DocumentPreviewProps) {
+  // Extract fullText from document object, or use content as fallback
+  const displayContent = structuredResult?.document?.fullText || content;
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(displayContent);
@@ -147,21 +164,31 @@ export function DocumentPreview({ content, structuredResult, isStreaming, isLoad
     );
   }
 
-  // Check if document is empty (null, undefined, empty string, or empty object)
-  const hasDocument = structuredResult?.document &&
-    (typeof structuredResult.document === "string"
-      ? structuredResult.document.trim().length > 0
-      : Object.keys(structuredResult.document).length > 0);
+  // Check if we have fullText in the document
+  const hasFullText = structuredResult?.document?.fullText &&
+    structuredResult.document.fullText.trim().length > 0;
 
-  // If we have structured result without final document, display structured view
-  if (structuredResult && !hasDocument) {
+  // Always show structured view when we have structured data (it's more useful)
+  if (structuredResult) {
     return (
       <Card className="h-full overflow-auto max-h-[calc(100vh-12rem)]">
-        <CardHeader className="pb-3">
+        <CardHeader className="flex flex-row items-center justify-between pb-3">
           <CardTitle className="text-base flex items-center gap-2">
             <Scale className="h-5 w-5" />
             Aperçu du document
           </CardTitle>
+          {hasFullText && (
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={handleCopy}>
+                <Copy className="h-4 w-4 mr-1" />
+                Copier
+              </Button>
+              <Button variant="outline" size="sm" onClick={handleDownload}>
+                <Download className="h-4 w-4 mr-1" />
+                Télécharger
+              </Button>
+            </div>
+          )}
         </CardHeader>
         <CardContent className="space-y-6">
           {/* Metadata */}
@@ -318,14 +345,41 @@ export function DocumentPreview({ content, structuredResult, isStreaming, isLoad
             </div>
           )}
 
-          {/* Note about pending document - only show if there are pending questions */}
-          {hasPendingQuestions && (
-            <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg p-4 text-sm">
-              <p className="text-amber-800 dark:text-amber-200">
-                Le document final sera généré après clarification des questions en attente.
-              </p>
+          {/* Document Body Sections */}
+          {structuredResult.document?.body && (
+            <div className="space-y-3">
+              <h4 className="font-medium text-sm text-muted-foreground">Corps du document</h4>
+              {structuredResult.document.body.factsSection && (
+                <div className="bg-muted/50 rounded-lg p-3">
+                  <p className="text-xs font-medium text-muted-foreground mb-1">Exposé des faits</p>
+                  <p className="text-sm">{structuredResult.document.body.factsSection}</p>
+                </div>
+              )}
+              {structuredResult.document.body.discussionSection && (
+                <div className="bg-muted/50 rounded-lg p-3">
+                  <p className="text-xs font-medium text-muted-foreground mb-1">Discussion</p>
+                  <p className="text-sm">{structuredResult.document.body.discussionSection}</p>
+                </div>
+              )}
+              {structuredResult.document.body.dispositif && (
+                <div className="bg-primary/5 rounded-lg p-3 border border-primary/20">
+                  <p className="text-xs font-medium text-primary mb-1">Dispositif</p>
+                  <p className="text-sm font-medium">{structuredResult.document.body.dispositif}</p>
+                </div>
+              )}
             </div>
           )}
+
+          {/* Full Text */}
+          {hasFullText && (
+            <div className="space-y-2">
+              <h4 className="font-medium text-sm text-muted-foreground">Document complet</h4>
+              <div className="bg-background border rounded-lg p-4 prose prose-sm dark:prose-invert max-w-none">
+                <pre className="whitespace-pre-wrap text-sm font-sans">{structuredResult.document?.fullText}</pre>
+              </div>
+            </div>
+          )}
+
         </CardContent>
       </Card>
     );

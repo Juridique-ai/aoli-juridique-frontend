@@ -1,11 +1,11 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-import { Copy, Download, Mail, Send, AlertTriangle, BookOpen, Scale } from "lucide-react";
+import { Copy, Download, Mail, Send, AlertTriangle, Scale, FileText, Loader2, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 
 interface LetterPreviewProps {
@@ -76,6 +76,8 @@ const LETTER_TYPE_LABELS: Record<string, string> = {
 export function LetterPreview({ content, isStreaming, isLoading }: LetterPreviewProps) {
   const letterData = useMemo(() => parseLetterData(content), [content]);
   const fullText = letterData?.letter?.fullText;
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
   const handleCopy = async () => {
     const textToCopy = fullText || content;
@@ -93,6 +95,36 @@ export function LetterPreview({ content, isStreaming, isLoading }: LetterPreview
     a.click();
     URL.revokeObjectURL(url);
     toast.success("Courrier téléchargé");
+  };
+
+  const handleGeneratePdf = async () => {
+    const textContent = fullText || content;
+    if (!textContent) return;
+
+    setIsGeneratingPdf(true);
+    setPdfUrl(null);
+
+    try {
+      const response = await fetch("/api/generate-pdf", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: textContent, style: "legal" }),
+      });
+
+      const data = await response.json();
+
+      if (data.success && data.pdfUrl) {
+        setPdfUrl(data.pdfUrl);
+        toast.success("PDF généré avec succès");
+      } else {
+        toast.error(data.error || "Échec de la génération du PDF");
+      }
+    } catch (error) {
+      console.error("PDF generation error:", error);
+      toast.error("Erreur lors de la génération du PDF");
+    } finally {
+      setIsGeneratingPdf(false);
+    }
   };
 
   if (isLoading && !content) {
@@ -135,8 +167,8 @@ export function LetterPreview({ content, isStreaming, isLoading }: LetterPreview
       <div className="space-y-4">
         {/* Main Letter Card */}
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-3">
-            <div className="flex items-center gap-2">
+          <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3">
+            <div className="flex flex-wrap items-center gap-2">
               <CardTitle className="text-base">Courrier généré</CardTitle>
               {letterData.metadata?.letterType && (
                 <Badge variant="secondary">
@@ -149,21 +181,52 @@ export function LetterPreview({ content, isStreaming, isLoading }: LetterPreview
                 </Badge>
               )}
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <Button variant="outline" size="sm" onClick={handleCopy}>
-                <Copy className="h-4 w-4 mr-1" />
-                Copier
+                <Copy className="h-4 w-4 sm:mr-1" />
+                <span className="hidden sm:inline">Copier</span>
               </Button>
               <Button variant="outline" size="sm" onClick={handleDownload}>
-                <Download className="h-4 w-4 mr-1" />
-                Télécharger
+                <Download className="h-4 w-4 sm:mr-1" />
+                <span className="hidden sm:inline">TXT</span>
+              </Button>
+              <Button
+                variant="default"
+                size="sm"
+                onClick={handleGeneratePdf}
+                disabled={isGeneratingPdf}
+              >
+                {isGeneratingPdf ? (
+                  <Loader2 className="h-4 w-4 sm:mr-1 animate-spin" />
+                ) : (
+                  <FileText className="h-4 w-4 sm:mr-1" />
+                )}
+                <span className="hidden sm:inline">PDF</span>
               </Button>
             </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
             <div className="bg-muted/50 rounded-lg p-6 font-mono text-sm whitespace-pre-wrap leading-relaxed">
               {fullText}
             </div>
+
+            {/* PDF Ready */}
+            {pdfUrl && (
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 bg-green-50 dark:bg-green-950/30 rounded-lg border border-green-200 dark:border-green-800">
+                <div className="flex items-center gap-2">
+                  <FileText className="h-5 w-5 text-green-600" />
+                  <span className="text-sm font-medium text-green-800 dark:text-green-200">
+                    PDF généré avec succès
+                  </span>
+                </div>
+                <Button variant="default" size="sm" asChild>
+                  <a href={pdfUrl} target="_blank" rel="noopener noreferrer">
+                    <ExternalLink className="h-4 w-4 mr-1" />
+                    Ouvrir le PDF
+                  </a>
+                </Button>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -236,25 +299,56 @@ export function LetterPreview({ content, isStreaming, isLoading }: LetterPreview
   // Fallback: show raw content
   return (
     <Card className="h-full">
-      <CardHeader className="flex flex-row items-center justify-between pb-3">
+      <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3">
         <CardTitle className="text-base">Aperçu du courrier</CardTitle>
         {content && !isStreaming && (
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button variant="outline" size="sm" onClick={handleCopy}>
-              <Copy className="h-4 w-4 mr-1" />
-              Copier
+              <Copy className="h-4 w-4 sm:mr-1" />
+              <span className="hidden sm:inline">Copier</span>
             </Button>
             <Button variant="outline" size="sm" onClick={handleDownload}>
-              <Download className="h-4 w-4 mr-1" />
-              Télécharger
+              <Download className="h-4 w-4 sm:mr-1" />
+              <span className="hidden sm:inline">TXT</span>
+            </Button>
+            <Button
+              variant="default"
+              size="sm"
+              onClick={handleGeneratePdf}
+              disabled={isGeneratingPdf}
+            >
+              {isGeneratingPdf ? (
+                <Loader2 className="h-4 w-4 sm:mr-1 animate-spin" />
+              ) : (
+                <FileText className="h-4 w-4 sm:mr-1" />
+              )}
+              <span className="hidden sm:inline">PDF</span>
             </Button>
           </div>
         )}
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-4">
         <div className="prose prose-sm dark:prose-invert max-w-none whitespace-pre-wrap">
           {content}
         </div>
+
+        {/* PDF Ready */}
+        {pdfUrl && (
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 bg-green-50 dark:bg-green-950/30 rounded-lg border border-green-200 dark:border-green-800">
+            <div className="flex items-center gap-2">
+              <FileText className="h-5 w-5 text-green-600" />
+              <span className="text-sm font-medium text-green-800 dark:text-green-200">
+                PDF généré avec succès
+              </span>
+            </div>
+            <Button variant="default" size="sm" asChild>
+              <a href={pdfUrl} target="_blank" rel="noopener noreferrer">
+                <ExternalLink className="h-4 w-4 mr-1" />
+                Ouvrir le PDF
+              </a>
+            </Button>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
