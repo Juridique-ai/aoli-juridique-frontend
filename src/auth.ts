@@ -9,24 +9,21 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     {
       id: "microsoft-entra-id",
       name: "Microsoft Entra ID",
-      type: "oauth",
+      type: "oidc",
       clientId: process.env.AUTH_MICROSOFT_ENTRA_ID_ID || "",
       clientSecret: process.env.AUTH_MICROSOFT_ENTRA_ID_SECRET || "",
+      issuer: `https://${ciamDomain}/${tenantId}/v2.0`,
       authorization: {
-        url: `https://${ciamDomain}/${tenantId}/oauth2/v2.0/authorize`,
         params: {
           scope: "openid profile email",
-          response_type: "code",
         },
       },
-      token: `https://${ciamDomain}/${tenantId}/oauth2/v2.0/token`,
-      userinfo: `https://graph.microsoft.com/oidc/userinfo`,
       checks: ["pkce", "state"],
-      profile(profile: { sub: string; name: string; email: string }) {
+      profile(profile: { sub: string; name?: string; email?: string; preferred_username?: string }) {
         return {
           id: profile.sub,
-          name: profile.name,
-          email: profile.email,
+          name: profile.name || profile.preferred_username || "",
+          email: profile.email || profile.preferred_username || "",
         };
       },
     },
