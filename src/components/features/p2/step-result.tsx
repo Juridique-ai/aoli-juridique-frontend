@@ -38,9 +38,9 @@ interface FormationResult {
       greffe?: number;
       annoncesLegales?: number;
       capital?: number;
-      optional?: Record<string, number>;
+      autres?: number;
     };
-    annual?: Record<string, string>;
+    annualCosts?: Array<{ name: string; amount: string }>;
     total?: number;
   };
   timeline?: {
@@ -211,16 +211,16 @@ export function StepResult({ content, isStreaming, isLoading }: StepResultProps)
                       {result.costs.creation?.greffe !== undefined && (
                         <li>Greffe: {result.costs.creation.greffe}€</li>
                       )}
-                      {result.costs.creation?.optional && Object.entries(result.costs.creation.optional).map(([key, val]) => (
-                        <li key={key}>{key}: {val}€</li>
-                      ))}
+                      {result.costs.creation?.autres !== undefined && result.costs.creation.autres > 0 && (
+                        <li>Autres: {result.costs.creation.autres}€</li>
+                      )}
                     </ul>
                   </div>
                   <div>
                     <h4 className="font-medium text-sm mb-2">Annuel</h4>
                     <ul className="space-y-1 text-sm text-muted-foreground">
-                      {result.costs.annual && Object.entries(result.costs.annual).map(([key, val]) => (
-                        <li key={key}>{key}: {val}</li>
+                      {result.costs.annualCosts && result.costs.annualCosts.map((cost: { name: string; amount: string }, idx: number) => (
+                        <li key={idx}>{cost.name}: {cost.amount}</li>
                       ))}
                     </ul>
                   </div>
