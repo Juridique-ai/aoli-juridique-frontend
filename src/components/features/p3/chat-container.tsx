@@ -139,6 +139,39 @@ function formatLegalOpinionFromTool(opinion: LegalOpinionEvent): string {
   return parts.join("\n\n") || "Analyse complétée.";
 }
 
+// Format any structured JSON response into readable markdown
+function formatStructuredResponse(data: Record<string, unknown>): string | null {
+  // Check for legal opinion structure (from submit_legal_opinion tool)
+  if (data.factsSummary || data.analysisSummary || data.legalOpinion) {
+    if (data.legalOpinion) {
+      return formatLegalOpinion(data.legalOpinion as Record<string, unknown>);
+    }
+    return formatLegalOpinionFromTool(data as LegalOpinionEvent);
+  }
+
+  // Check for clarification (should be handled separately)
+  if (data.phase === "clarification") {
+    return null; // Let clarification handler deal with it
+  }
+
+  // Generic structured response - try to extract meaningful content
+  if (data.result && typeof data.result === "string") {
+    return data.result;
+  }
+  if (data.message && typeof data.message === "string") {
+    return data.message;
+  }
+  if (data.analysis && typeof data.analysis === "object") {
+    const analysis = data.analysis as Record<string, unknown>;
+    if (analysis.summary) {
+      return `## Analyse\n${analysis.summary}`;
+    }
+  }
+
+  // Return null if we can't format it meaningfully
+  return null;
+}
+
 // Legacy: Format legal opinion JSON into readable markdown (for old JSON responses)
 function formatLegalOpinion(opinion: Record<string, unknown>): string {
   const parts: string[] = [];
@@ -325,9 +358,17 @@ export function ChatContainer() {
 
                     // Check if this looks like JSON (structured response)
                     const trimmed = fullContent.trim();
-                    if (trimmed.startsWith("{")) {
+                    if (trimmed.startsWith("{") || trimmed.startsWith("```")) {
                       isStructuredResponse = true;
-                      // Don't update message - show "thinking" state via isStreaming
+                      // Try to parse and format JSON for display
+                      const parsed = tryParseJSON(fullContent);
+                      if (parsed) {
+                        // Format structured response for display
+                        const formatted = formatStructuredResponse(parsed);
+                        if (formatted) {
+                          updateMessage(assistantId, formatted);
+                        }
+                      }
                     } else {
                       // Regular text content - show it
                       updateMessage(assistantId, fullContent);
@@ -392,14 +433,24 @@ export function ChatContainer() {
                   } else {
                     // Try to parse as structured JSON response
                     const parsed = tryParseJSON(completedContent);
-                    if (parsed?.legalOpinion) {
-                      updateMessage(assistantId, formatLegalOpinion(parsed.legalOpinion as Record<string, unknown>));
+                    if (parsed) {
+                      // Try to format the structured response
+                      const formatted = formatStructuredResponse(parsed);
+                      if (formatted) {
+                        updateMessage(assistantId, formatted);
+                      } else if (parsed.legalOpinion) {
+                        updateMessage(assistantId, formatLegalOpinion(parsed.legalOpinion as Record<string, unknown>));
+                      } else {
+                        // Fallback: try to get any displayable content
+                        const fallback = (parsed.message || parsed.result || completedContent) as string;
+                        updateMessage(assistantId, fallback);
+                      }
                     } else if (completedContent && !completedContent.trim().startsWith("{")) {
                       // Plain text response
                       updateMessage(assistantId, completedContent);
-                    } else if (parsed) {
-                      // Some other JSON structure - try to display something meaningful
-                      updateMessage(assistantId, (parsed.message || parsed.result || "Analyse complétée.") as string);
+                    } else {
+                      // Raw JSON that couldn't be parsed - show as is
+                      updateMessage(assistantId, completedContent || "Analyse complétée.");
                     }
                   }
                   setStreaming(assistantId, false);
