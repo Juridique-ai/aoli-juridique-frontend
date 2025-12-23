@@ -1,17 +1,15 @@
-name: Deploy to Azure App Service
+name: Deploy to Dev
 
 on:
-  push:
-    branches:
-      - main
   workflow_dispatch:
 
 env:
-  AZURE_WEBAPP_NAME: aoli-juridique-frontend
   NODE_VERSION: '22.x'
+  WEBAPP_NAME: 'aoli-juridique-frontend'
 
 jobs:
-  build-and-deploy:
+  deploy:
+    name: Deploy Frontend to Dev
     runs-on: ubuntu-latest
 
     steps:
@@ -30,15 +28,13 @@ jobs:
       - name: Build Next.js app
         run: npm run build
         env:
-          NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
-          NEXT_PUBLIC_API_KEY: ${{ secrets.NEXT_PUBLIC_API_KEY }}
+          NEXT_PUBLIC_API_URL: ${{ secrets.DEV_API_URL }}
+          NEXT_PUBLIC_API_KEY: ${{ secrets.DEV_API_KEY }}
 
       - name: Prepare standalone deployment
         run: |
-          # Copy static assets to standalone directory
           cp -r .next/static .next/standalone/.next/static
           cp -r public .next/standalone/public
-          # Create package.json for Azure startup
           echo '{"scripts":{"start":"node server.js"}}' > .next/standalone/package.json
 
       - name: Create deployment package
@@ -54,5 +50,10 @@ jobs:
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v3
         with:
-          app-name: ${{ env.AZURE_WEBAPP_NAME }}
+          app-name: ${{ env.WEBAPP_NAME }}
           package: deploy.zip
+
+      - name: Summary
+        run: |
+          echo "## Dev Deployment" >> $GITHUB_STEP_SUMMARY
+          echo "- **URL:** https://${{ env.WEBAPP_NAME }}.azurewebsites.net" >> $GITHUB_STEP_SUMMARY
