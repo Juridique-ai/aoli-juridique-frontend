@@ -118,6 +118,7 @@ function extractClarification(content: string): Clarification | null {
 
 // Format legal opinion from tool-based structured data
 interface LegalOpinionEvent {
+  // camelCase (frontend standard)
   factsSummary?: string;
   analysisSummary?: string;
   applicableLaws?: Array<{ name: string; articles: string[]; relevance: string }>;
@@ -128,48 +129,83 @@ interface LegalOpinionEvent {
   recommendationRationale?: string;
   immediateActions?: string[];
   disclaimer?: string;
+  // snake_case (backend format)
+  facts_summary?: string;
+  analysis_summary?: string;
+  applicable_laws?: string | Array<{ name: string; articles: string[]; relevance: string }>;
+  risk_level?: string;
+  risk_details?: string;
+  options_json?: string | Array<{ option: string; description: string; pros: string[]; cons: string[]; successProbability: string }>;
+  recommended_option?: string;
+  recommendation_rationale?: string;
+  immediate_actions?: string | string[];
 }
 
 function formatLegalOpinionFromTool(opinion: LegalOpinionEvent): string {
   const parts: string[] = [];
 
-  if (opinion.factsSummary) {
-    parts.push(`## Résumé des faits\n${opinion.factsSummary}`);
+  // Helper to parse JSON strings
+  const parseIfString = <T,>(val: string | T | undefined): T | undefined => {
+    if (typeof val === "string") {
+      try {
+        return JSON.parse(val) as T;
+      } catch {
+        return undefined;
+      }
+    }
+    return val as T | undefined;
+  };
+
+  // Support both camelCase and snake_case
+  const factsSummary = opinion.factsSummary || opinion.facts_summary;
+  const analysisSummary = opinion.analysisSummary || opinion.analysis_summary;
+  const riskLevel = opinion.riskLevel || opinion.risk_level;
+  const riskDetails = opinion.riskDetails || opinion.risk_details;
+  const recommendedOption = opinion.recommendedOption || opinion.recommended_option;
+  const recommendationRationale = opinion.recommendationRationale || opinion.recommendation_rationale;
+
+  // Parse arrays that might be JSON strings
+  const applicableLaws = parseIfString(opinion.applicableLaws) || parseIfString(opinion.applicable_laws);
+  const options = parseIfString(opinion.options) || parseIfString(opinion.options_json);
+  const immediateActions = parseIfString(opinion.immediateActions) || parseIfString(opinion.immediate_actions);
+
+  if (factsSummary) {
+    parts.push(`## Résumé des faits\n${factsSummary}`);
   }
 
-  if (opinion.analysisSummary) {
-    parts.push(`## Analyse juridique\n${opinion.analysisSummary}`);
+  if (analysisSummary) {
+    parts.push(`## Analyse juridique\n${analysisSummary}`);
   }
 
-  if (opinion.applicableLaws && opinion.applicableLaws.length > 0) {
-    const laws = opinion.applicableLaws
+  if (applicableLaws && Array.isArray(applicableLaws) && applicableLaws.length > 0) {
+    const laws = applicableLaws
       .map((law) => `- **${law.name}** (${law.articles.join(", ")}): ${law.relevance}`)
       .join("\n");
     parts.push(`## Cadre juridique\n${laws}`);
   }
 
-  if (opinion.riskLevel) {
-    const riskEmoji = opinion.riskLevel === "high" ? "🔴" : opinion.riskLevel === "medium" ? "🟠" : "🟢";
-    parts.push(`## Évaluation des risques\n${riskEmoji} **Niveau: ${opinion.riskLevel}**\n\n${opinion.riskDetails || ""}`);
+  if (riskLevel) {
+    const riskEmoji = riskLevel === "high" ? "🔴" : riskLevel === "medium" ? "🟠" : "🟢";
+    parts.push(`## Évaluation des risques\n${riskEmoji} **Niveau: ${riskLevel}**\n\n${riskDetails || ""}`);
   }
 
-  if (opinion.options && opinion.options.length > 0) {
-    const optionsText = opinion.options
+  if (options && Array.isArray(options) && options.length > 0) {
+    const optionsText = options
       .map((opt) => {
-        const pros = opt.pros?.map((p) => `  - ✅ ${p}`).join("\n") || "";
-        const cons = opt.cons?.map((c) => `  - ❌ ${c}`).join("\n") || "";
+        const pros = opt.pros?.map((p: string) => `  - ✅ ${p}`).join("\n") || "";
+        const cons = opt.cons?.map((c: string) => `  - ❌ ${c}`).join("\n") || "";
         return `### ${opt.option}\n${opt.description}\n\n**Avantages:**\n${pros}\n\n**Inconvénients:**\n${cons}\n\n*Probabilité de succès: ${opt.successProbability}*`;
       })
       .join("\n\n");
     parts.push(`## Options\n${optionsText}`);
   }
 
-  if (opinion.recommendedOption) {
-    parts.push(`## Recommandation\n**${opinion.recommendedOption}**\n\n${opinion.recommendationRationale || ""}`);
+  if (recommendedOption) {
+    parts.push(`## Recommandation\n**${recommendedOption}**\n\n${recommendationRationale || ""}`);
   }
 
-  if (opinion.immediateActions && opinion.immediateActions.length > 0) {
-    const actions = opinion.immediateActions.map((a) => `- ${a}`).join("\n");
+  if (immediateActions && Array.isArray(immediateActions) && immediateActions.length > 0) {
+    const actions = immediateActions.map((a) => `- ${a}`).join("\n");
     parts.push(`## Actions immédiates\n${actions}`);
   }
 
@@ -183,7 +219,9 @@ function formatLegalOpinionFromTool(opinion: LegalOpinionEvent): string {
 // Format any structured JSON response into readable markdown
 function formatStructuredResponse(data: Record<string, unknown>): string | null {
   // Check for legal opinion structure (from submit_legal_opinion tool)
-  if (data.factsSummary || data.analysisSummary || data.legalOpinion) {
+  // Support both camelCase and snake_case
+  if (data.factsSummary || data.analysisSummary || data.legalOpinion ||
+      data.facts_summary || data.analysis_summary) {
     if (data.legalOpinion) {
       return formatLegalOpinion(data.legalOpinion as Record<string, unknown>);
     }
