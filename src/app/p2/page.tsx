@@ -260,7 +260,7 @@ export default function P2Page() {
             variant="outline"
             size="sm"
             onClick={() => setShowMobileSummary(!showMobileSummary)}
-            className="lg:hidden hover:bg-primary/10 hover:text-primary hover:border-primary/30 transition-all"
+            className="md:hidden hover:bg-primary/10 hover:text-primary hover:border-primary/30 transition-all"
           >
             <ClipboardList className="h-4 w-4 mr-2" />
             Récapitulatif
@@ -270,7 +270,7 @@ export default function P2Page() {
 
       {/* Mobile Summary Drawer */}
       {showMobileSummary && (
-        <div className="lg:hidden mb-6 p-4 rounded-xl bg-muted/30 border border-border/50 animate-fade-in">
+        <div className="md:hidden mb-6 p-4 rounded-xl bg-muted/30 border border-border/50 animate-fade-in">
           <WizardSummary
             country={country}
             questionnaire={questionnaire}
@@ -280,7 +280,7 @@ export default function P2Page() {
       )}
 
       {/* Main content with sidebar on desktop */}
-      <div className="grid lg:grid-cols-[1fr,280px] gap-6">
+      <div className="grid md:grid-cols-[1fr,280px] gap-6">
         {/* Main wizard area */}
         <div className="space-y-6">
           <WizardProgress currentStep={step} totalSteps={5} steps={STEPS} />
@@ -354,7 +354,7 @@ export default function P2Page() {
         </div>
 
         {/* Desktop Summary Sidebar */}
-        <div className="hidden lg:block">
+        <div className="hidden md:block">
           <div className="sticky top-6 p-4 rounded-xl bg-muted/30 border border-border/50">
             <WizardSummary
               country={country}

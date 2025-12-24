@@ -56,17 +56,55 @@ function tryParseJSON(content: string): Record<string, unknown> | null {
 function extractClarification(content: string): Clarification | null {
   try {
     // Trim whitespace and try to parse
-    const trimmed = content.trim();
+    let trimmed = content.trim();
+
+    // Handle markdown code blocks
+    if (trimmed.startsWith("```")) {
+      const lines = trimmed.split("\n");
+      lines.shift();
+      if (lines[lines.length - 1]?.trim() === "```") {
+        lines.pop();
+      }
+      trimmed = lines.join("\n").trim();
+    }
+
     const parsed = JSON.parse(trimmed);
+
+    // New format: { title, questions_json } where questions_json is a string
+    if (parsed.title && parsed.questions_json) {
+      const questions = typeof parsed.questions_json === "string"
+        ? JSON.parse(parsed.questions_json)
+        : parsed.questions_json;
+      return {
+        title: parsed.title,
+        questions,
+      } as Clarification;
+    }
+
+    // Direct format: { title, questions }
+    if (parsed.title && parsed.questions) {
+      return parsed as Clarification;
+    }
+
+    // Legacy format: { phase: "clarification", clarification: { ... } }
     if (parsed.phase === "clarification" && parsed.clarification?.questions) {
       return parsed.clarification as Clarification;
     }
   } catch (e) {
     // Try to find JSON in the content (in case there's text before/after)
-    const jsonMatch = content.match(/\{[\s\S]*"phase"\s*:\s*"clarification"[\s\S]*\}/);
+    const jsonMatch = content.match(/\{[\s\S]*"(questions_json|questions)"[\s\S]*\}/);
     if (jsonMatch) {
       try {
         const parsed = JSON.parse(jsonMatch[0]);
+        if (parsed.title && parsed.questions_json) {
+          const questions = typeof parsed.questions_json === "string"
+            ? JSON.parse(parsed.questions_json)
+            : parsed.questions_json;
+          return { title: parsed.title, questions } as Clarification;
+        }
+        if (parsed.title && parsed.questions) {
+          return parsed as Clarification;
+        }
         if (parsed.clarification?.questions) {
           return parsed.clarification as Clarification;
         }

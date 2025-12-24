@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useP4Store } from "@/stores/p4-store";
+import { useUserProfileStore, formatFullAddress } from "@/stores/user-profile-store";
 import { TemplatesGallery } from "@/components/features/p4/templates-gallery";
 import { CorrespondenceForm } from "@/components/features/p4/correspondence-form";
 import { LetterPreview } from "@/components/features/p4/letter-preview";
@@ -21,10 +22,12 @@ import {
   LayoutGrid,
   FileText,
   ArrowLeft,
+  UserCheck,
 } from "lucide-react";
 import { endpoints } from "@/lib/api/endpoints";
 import { P4_DEMO_DATA } from "@/lib/demo-data";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL;
 const API_KEY = process.env.NEXT_PUBLIC_API_KEY;
@@ -86,9 +89,47 @@ export default function P4Page() {
     reset,
   } = useP4Store();
 
+  const { profile, isLoaded: profileLoaded } = useUserProfileStore();
+
   const [clarificationAnswer, setClarificationAnswer] = useState("");
 
   const canGenerate = sender.name && recipient.name && subject && context && objective;
+
+  // Check if user has profile info
+  const hasProfileInfo = profileLoaded && profile.fullName && profile.address;
+
+  // Auto-fill sender from profile when switching to form view
+  const fillSenderFromProfile = () => {
+    if (!profile.fullName) {
+      toast.error("Veuillez d'abord remplir votre profil");
+      return;
+    }
+    const fullAddress = formatFullAddress(profile);
+    const displayName = profile.company
+      ? `${profile.fullName} (${profile.company})`
+      : profile.fullName;
+    setSender({
+      name: displayName,
+      address: fullAddress,
+      role: profile.role,
+    });
+    toast.success("Expéditeur pré-rempli depuis votre profil");
+  };
+
+  // Auto-fill sender when entering form view if sender is empty and profile exists
+  useEffect(() => {
+    if (view === "form" && profileLoaded && !sender.name && profile.fullName) {
+      const fullAddress = formatFullAddress(profile);
+      const displayName = profile.company
+        ? `${profile.fullName} (${profile.company})`
+        : profile.fullName;
+      setSender({
+        name: displayName,
+        address: fullAddress,
+        role: profile.role,
+      });
+    }
+  }, [view, profileLoaded, sender.name, profile, setSender]);
 
   const handleTemplateSelect = (prefill: { subject: string; context: string; objective: string; tone: "formal" | "firm" | "conciliatory" }) => {
     setSubject(prefill.subject);
@@ -380,6 +421,17 @@ export default function P4Page() {
           <FileEdit className="h-4 w-4 mr-2" />
           {isLoading ? "Génération en cours..." : "Générer le courrier"}
         </Button>
+
+        {hasProfileInfo && !sender.name && (
+          <Button
+            variant="outline"
+            onClick={fillSenderFromProfile}
+            className="hover:bg-primary/10 hover:text-primary hover:border-primary/30 transition-all"
+          >
+            <UserCheck className="h-4 w-4 mr-2" />
+            Utiliser mon profil
+          </Button>
+        )}
 
         {!canGenerate && (
           <p className="text-sm text-muted-foreground">
