@@ -2,13 +2,26 @@
 
 import { useState } from "react";
 import { useP4Store } from "@/stores/p4-store";
+import { TemplatesGallery } from "@/components/features/p4/templates-gallery";
 import { CorrespondenceForm } from "@/components/features/p4/correspondence-form";
 import { LetterPreview } from "@/components/features/p4/letter-preview";
 import { ToolProgress } from "@/components/shared/tool-progress";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { FileEdit, RotateCcw, HelpCircle, Send, User, Bot, Wand2, Mail, Sparkles } from "lucide-react";
+import {
+  FileEdit,
+  RotateCcw,
+  HelpCircle,
+  Send,
+  User,
+  Bot,
+  Mail,
+  Sparkles,
+  LayoutGrid,
+  FileText,
+  ArrowLeft,
+} from "lucide-react";
 import { endpoints } from "@/lib/api/endpoints";
 import { P4_DEMO_DATA } from "@/lib/demo-data";
 import { cn } from "@/lib/utils";
@@ -39,6 +52,9 @@ function parseResult(content: string): { phase: string; clarifyingQuestions?: st
 }
 
 export default function P4Page() {
+  const [view, setView] = useState<"templates" | "form">("templates");
+  const [mobileTab, setMobileTab] = useState<"form" | "preview">("form");
+
   const {
     sender,
     recipient,
@@ -74,6 +90,14 @@ export default function P4Page() {
 
   const canGenerate = sender.name && recipient.name && subject && context && objective;
 
+  const handleTemplateSelect = (prefill: { subject: string; context: string; objective: string; tone: "formal" | "firm" | "conciliatory" }) => {
+    setSubject(prefill.subject);
+    setContext(prefill.context);
+    setObjective(prefill.objective);
+    setTone(prefill.tone);
+    setView("form");
+  };
+
   const handleDemo = () => {
     setSender(P4_DEMO_DATA.sender);
     setRecipient(P4_DEMO_DATA.recipient);
@@ -82,6 +106,13 @@ export default function P4Page() {
     setObjective(P4_DEMO_DATA.objective);
     setTone(P4_DEMO_DATA.tone);
     setJurisdiction(P4_DEMO_DATA.jurisdiction);
+    setView("form");
+  };
+
+  const handleReset = () => {
+    reset();
+    setView("templates");
+    setMobileTab("form");
   };
 
   const handleGenerate = async (additionalContext?: string) => {
@@ -92,6 +123,7 @@ export default function P4Page() {
     }
     setLoading(true);
     setError(null);
+    setMobileTab("preview");
 
     // Build request with conversation context
     const baseRequest = `Sujet: ${subject}\n\nContexte: ${context}\n\nObjectif: ${objective}`;
@@ -248,10 +280,57 @@ export default function P4Page() {
     handleGenerate(clarificationAnswer);
   };
 
+  // Template selection view
+  if (view === "templates") {
+    return (
+      <div className="container py-8 max-w-4xl animate-fade-in">
+        {/* Page Header */}
+        <div className="mb-8 flex items-start justify-between">
+          <div className="flex items-start gap-4">
+            <div className="relative">
+              <div className="absolute inset-0 bg-primary/20 rounded-xl blur-lg" />
+              <div className="relative p-3 rounded-xl bg-primary/10 text-primary">
+                <Mail className="h-6 w-6" />
+              </div>
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight">Correspondance Juridique</h1>
+              <p className="text-muted-foreground mt-1">
+                Rédigez des courriers juridiques professionnels
+              </p>
+            </div>
+          </div>
+          <Button
+            variant="outline"
+            onClick={handleDemo}
+            className="hover:bg-primary/10 hover:text-primary hover:border-primary/30 transition-all"
+          >
+            <Sparkles className="h-4 w-4 mr-2" />
+            Démo
+          </Button>
+        </div>
+
+        <TemplatesGallery onSelectTemplate={handleTemplateSelect} />
+
+        {/* Skip templates option */}
+        <div className="mt-8 text-center">
+          <Button
+            variant="ghost"
+            onClick={() => setView("form")}
+            className="text-muted-foreground hover:text-foreground"
+          >
+            <FileEdit className="h-4 w-4 mr-2" />
+            Ou commencer de zéro
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="container py-8 animate-fade-in">
       {/* Page Header */}
-      <div className="mb-8 flex items-start justify-between">
+      <div className="mb-6 flex items-start justify-between">
         <div className="flex items-start gap-4">
           <div className="relative">
             <div className="absolute inset-0 bg-primary/20 rounded-xl blur-lg" />
@@ -265,6 +344,26 @@ export default function P4Page() {
               Rédigez des courriers juridiques professionnels
             </p>
           </div>
+        </div>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setView("templates")}
+            className="hover:bg-primary/10 hover:text-primary hover:border-primary/30 transition-all"
+          >
+            <LayoutGrid className="h-4 w-4 mr-2" />
+            Modèles
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleReset}
+            className="hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30 transition-all"
+          >
+            <RotateCcw className="h-4 w-4 mr-2" />
+            Réinitialiser
+          </Button>
         </div>
       </div>
 
@@ -282,24 +381,11 @@ export default function P4Page() {
           {isLoading ? "Génération en cours..." : "Générer le courrier"}
         </Button>
 
-        <div className="flex-1" />
-
-        <Button
-          variant="outline"
-          onClick={handleDemo}
-          className="hover:bg-primary/10 hover:text-primary hover:border-primary/30 transition-all"
-        >
-          <Sparkles className="h-4 w-4 mr-2" />
-          Démo
-        </Button>
-        <Button
-          variant="outline"
-          onClick={reset}
-          className="hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30 transition-all"
-        >
-          <RotateCcw className="h-4 w-4 mr-2" />
-          Réinitialiser
-        </Button>
+        {!canGenerate && (
+          <p className="text-sm text-muted-foreground">
+            Remplissez l'expéditeur, le destinataire, l'objet, le contexte et l'objectif
+          </p>
+        )}
       </div>
 
       {/* Tool Progress */}
@@ -379,8 +465,43 @@ export default function P4Page() {
         </Card>
       )}
 
-      {/* Split View */}
-      <div className="grid lg:grid-cols-2 gap-6">
+      {/* Mobile Tab Navigation */}
+      <div className="lg:hidden mb-4">
+        <div className="flex gap-2 p-1 bg-muted/50 rounded-xl">
+          <button
+            type="button"
+            onClick={() => setMobileTab("form")}
+            className={cn(
+              "flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all",
+              mobileTab === "form"
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <FileText className="h-4 w-4" />
+            Formulaire
+          </button>
+          <button
+            type="button"
+            onClick={() => setMobileTab("preview")}
+            className={cn(
+              "flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all relative",
+              mobileTab === "preview"
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <Mail className="h-4 w-4" />
+            Aperçu
+            {result && mobileTab === "form" && (
+              <span className="absolute top-1 right-1 w-2 h-2 bg-primary rounded-full animate-pulse" />
+            )}
+          </button>
+        </div>
+      </div>
+
+      {/* Desktop: Split View */}
+      <div className="hidden lg:grid lg:grid-cols-2 gap-6">
         <div className="lg:max-h-[calc(100vh-16rem)] lg:overflow-y-auto pr-2">
           <CorrespondenceForm
             sender={sender}
@@ -402,6 +523,30 @@ export default function P4Page() {
         <div className="lg:sticky lg:top-6">
           <LetterPreview content={result} isStreaming={isLoading} isLoading={isLoading && !clarifyingQuestions.length} />
         </div>
+      </div>
+
+      {/* Mobile: Single Panel */}
+      <div className="lg:hidden">
+        {mobileTab === "form" ? (
+          <CorrespondenceForm
+            sender={sender}
+            recipient={recipient}
+            subject={subject}
+            context={context}
+            objective={objective}
+            tone={tone}
+            jurisdiction={jurisdiction}
+            onSenderChange={setSender}
+            onRecipientChange={setRecipient}
+            onSubjectChange={setSubject}
+            onContextChange={setContext}
+            onObjectiveChange={setObjective}
+            onToneChange={setTone}
+            onJurisdictionChange={setJurisdiction}
+          />
+        ) : (
+          <LetterPreview content={result} isStreaming={isLoading} isLoading={isLoading && !clarifyingQuestions.length} />
+        )}
       </div>
     </div>
   );

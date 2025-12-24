@@ -1,11 +1,31 @@
 "use client";
 
+import { useState } from "react";
 import { useP5Store } from "@/stores/p5-store";
-import { ProceduralForm } from "@/components/features/p5/procedural-form";
+import {
+  Step1DocumentType,
+  Step2CaseInfo,
+  Step3Parties,
+  Step4Facts,
+  Step5Claims,
+} from "@/components/features/p5/wizard-steps";
 import { DocumentPreview } from "@/components/features/p5/document-preview";
 import { ToolProgress } from "@/components/shared/tool-progress";
 import { Button } from "@/components/ui/button";
-import { FileEdit, RotateCcw, Wand2, Scale, Sparkles } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  FileEdit,
+  RotateCcw,
+  Scale,
+  Sparkles,
+  Check,
+  FileText,
+  Building2,
+  Users,
+  ListOrdered,
+  Gavel,
+} from "lucide-react";
 import { endpoints } from "@/lib/api/endpoints";
 import { P5_DEMO_DATA } from "@/lib/demo-data";
 import { cn } from "@/lib/utils";
@@ -13,7 +33,18 @@ import { cn } from "@/lib/utils";
 const API_BASE = process.env.NEXT_PUBLIC_API_URL;
 const API_KEY = process.env.NEXT_PUBLIC_API_KEY;
 
+const STEPS = [
+  { id: 1, title: "Document", icon: FileText },
+  { id: 2, title: "Affaire", icon: Building2 },
+  { id: 3, title: "Parties", icon: Users },
+  { id: 4, title: "Faits", icon: ListOrdered },
+  { id: 5, title: "Demandes", icon: Gavel },
+];
+
 export default function P5Page() {
+  const [step, setStep] = useState(1);
+  const [mobileView, setMobileView] = useState<"form" | "preview">("form");
+
   const {
     documentType,
     jurisdiction,
@@ -59,6 +90,13 @@ export default function P5Page() {
     P5_DEMO_DATA.facts.forEach((fact) => addFact(fact));
     P5_DEMO_DATA.claims.forEach((claim) => addClaim(claim));
     setLegalBasis(P5_DEMO_DATA.request);
+    setStep(5); // Go to last step after demo
+  };
+
+  const handleReset = () => {
+    reset();
+    setStep(1);
+    setMobileView("form");
   };
 
   const buildRequestText = () => {
@@ -88,6 +126,7 @@ ${legalBasis}
     setStructuredResult(null);
     setLoading(true);
     setError(null);
+    setMobileView("preview");
 
     try {
       const response = await fetch(`${API_BASE}${endpoints.p5.stream}`, {
@@ -131,11 +170,9 @@ ${legalBasis}
           const data = line.slice(6);
 
           if (data === "[DONE]") {
-            // Try to parse accumulated result as structured JSON
             const currentResult = useP5Store.getState().result;
             if (currentResult) {
               try {
-                // Find JSON in the accumulated content
                 const jsonMatch = currentResult.match(/\{[\s\S]*\}/);
                 if (jsonMatch) {
                   const parsed = JSON.parse(jsonMatch[0]);
@@ -144,7 +181,7 @@ ${legalBasis}
                     if (parsed.document?.fullText) {
                       setResult(parsed.document.fullText);
                     } else {
-                      setResult(""); // Clear raw JSON from display
+                      setResult("");
                     }
                   }
                 }
@@ -162,7 +199,6 @@ ${legalBasis}
 
             switch (event.type) {
               case "content":
-                // Content streaming - append to result
                 if (event.content) {
                   useP5Store.setState((state) => ({ result: state.result + event.content }));
                 }
@@ -182,15 +218,12 @@ ${legalBasis}
                 return;
 
               case "completed":
-                // Final structured result - may be a JSON string
                 if (event.result) {
                   let resultObj = event.result;
-                  // Parse if it's a string
                   if (typeof event.result === "string") {
                     try {
                       resultObj = JSON.parse(event.result);
                     } catch {
-                      // Not JSON, treat as text
                       setResult(event.result);
                       setLoading(false);
                       setCurrentTool(null);
@@ -198,7 +231,6 @@ ${legalBasis}
                     }
                   }
                   setStructuredResult(resultObj);
-                  // Extract document text if available
                   if (resultObj.document?.fullText) {
                     setResult(resultObj.document.fullText);
                   }
@@ -220,10 +252,68 @@ ${legalBasis}
     }
   };
 
+  const canProceed = () => {
+    switch (step) {
+      case 1: return !!documentType;
+      case 2: return !!court;
+      case 3: return !!plaintiff.name && !!defendant.name;
+      case 4: return facts.length > 0;
+      case 5: return claims.length > 0;
+      default: return true;
+    }
+  };
+
+  const renderStep = () => {
+    switch (step) {
+      case 1:
+        return <Step1DocumentType value={documentType} onChange={setDocumentType} />;
+      case 2:
+        return (
+          <Step2CaseInfo
+            jurisdiction={jurisdiction}
+            court={court}
+            caseNumber={caseNumber}
+            onJurisdictionChange={setJurisdiction}
+            onCourtChange={setCourt}
+            onCaseNumberChange={setCaseNumber}
+          />
+        );
+      case 3:
+        return (
+          <Step3Parties
+            plaintiff={plaintiff}
+            defendant={defendant}
+            onPlaintiffChange={setPlaintiff}
+            onDefendantChange={setDefendant}
+          />
+        );
+      case 4:
+        return (
+          <Step4Facts
+            facts={facts}
+            onAddFact={addFact}
+            onRemoveFact={removeFact}
+          />
+        );
+      case 5:
+        return (
+          <Step5Claims
+            claims={claims}
+            legalBasis={legalBasis}
+            onAddClaim={addClaim}
+            onRemoveClaim={removeClaim}
+            onLegalBasisChange={setLegalBasis}
+          />
+        );
+      default:
+        return null;
+    }
+  };
+
   return (
     <div className="container py-8 animate-fade-in">
       {/* Page Header */}
-      <div className="mb-8 flex items-start justify-between">
+      <div className="mb-6 flex items-start justify-between">
         <div className="flex items-start gap-4">
           <div className="relative">
             <div className="absolute inset-0 bg-primary/20 rounded-xl blur-lg" />
@@ -238,40 +328,83 @@ ${legalBasis}
             </p>
           </div>
         </div>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleDemo}
+            className="hover:bg-primary/10 hover:text-primary hover:border-primary/30 transition-all"
+          >
+            <Sparkles className="h-4 w-4 mr-2" />
+            Démo
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleReset}
+            className="hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30 transition-all"
+          >
+            <RotateCcw className="h-4 w-4 mr-2" />
+            Réinitialiser
+          </Button>
+        </div>
       </div>
 
-      {/* Controls */}
-      <div className={cn(
-        "flex flex-wrap items-center gap-3 mb-6 p-4 rounded-xl",
-        "bg-muted/30 border border-border/50"
-      )}>
-        <Button
-          onClick={handleGenerate}
-          disabled={isLoading || !canGenerate}
-          className="shadow-lg shadow-primary/20"
-        >
-          <FileEdit className="h-4 w-4 mr-2" />
-          {isLoading ? "Génération en cours..." : "Générer le document"}
-        </Button>
+      {/* Progress Steps */}
+      <div className="mb-8">
+        <div className="flex items-center justify-between max-w-2xl mx-auto">
+          {STEPS.map((s, index) => {
+            const Icon = s.icon;
+            const isActive = step === s.id;
+            const isCompleted = step > s.id;
 
-        <div className="flex-1" />
-
-        <Button
-          variant="outline"
-          onClick={handleDemo}
-          className="hover:bg-primary/10 hover:text-primary hover:border-primary/30 transition-all"
-        >
-          <Sparkles className="h-4 w-4 mr-2" />
-          Démo
-        </Button>
-        <Button
-          variant="outline"
-          onClick={reset}
-          className="hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30 transition-all"
-        >
-          <RotateCcw className="h-4 w-4 mr-2" />
-          Réinitialiser
-        </Button>
+            return (
+              <div key={s.id} className="flex items-center">
+                <button
+                  type="button"
+                  onClick={() => isCompleted && setStep(s.id)}
+                  disabled={!isCompleted && !isActive}
+                  className={cn(
+                    "flex flex-col items-center gap-1.5 transition-all",
+                    isCompleted && "cursor-pointer"
+                  )}
+                >
+                  <div
+                    className={cn(
+                      "w-10 h-10 rounded-full flex items-center justify-center transition-all",
+                      isActive && "bg-primary text-primary-foreground shadow-lg shadow-primary/30",
+                      isCompleted && "bg-primary/20 text-primary",
+                      !isActive && !isCompleted && "bg-muted text-muted-foreground"
+                    )}
+                  >
+                    {isCompleted ? (
+                      <Check className="h-5 w-5" />
+                    ) : (
+                      <Icon className="h-5 w-5" />
+                    )}
+                  </div>
+                  <span
+                    className={cn(
+                      "text-xs font-medium hidden sm:block",
+                      isActive && "text-primary",
+                      !isActive && "text-muted-foreground"
+                    )}
+                  >
+                    {s.title}
+                  </span>
+                </button>
+                {index < STEPS.length - 1 && (
+                  <div
+                    className={cn(
+                      "w-8 sm:w-16 h-0.5 mx-2",
+                      step > s.id ? "bg-primary" : "bg-muted"
+                    )}
+                  />
+                )}
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       {/* Tool Progress */}
@@ -288,33 +421,90 @@ ${legalBasis}
         </div>
       )}
 
-      {/* Split View */}
-      <div className="grid lg:grid-cols-2 gap-6">
-        <div className="lg:max-h-[calc(100vh-16rem)] lg:overflow-y-auto pr-2">
-          <ProceduralForm
-            documentType={documentType}
-            jurisdiction={jurisdiction}
-            court={court}
-            caseNumber={caseNumber}
-            plaintiff={plaintiff}
-            defendant={defendant}
-            facts={facts}
-            claims={claims}
-            legalBasis={legalBasis}
-            onDocumentTypeChange={setDocumentType}
-            onJurisdictionChange={setJurisdiction}
-            onCourtChange={setCourt}
-            onCaseNumberChange={setCaseNumber}
-            onPlaintiffChange={setPlaintiff}
-            onDefendantChange={setDefendant}
-            onAddFact={addFact}
-            onRemoveFact={removeFact}
-            onAddClaim={addClaim}
-            onRemoveClaim={removeClaim}
-            onLegalBasisChange={setLegalBasis}
-          />
+      {/* Mobile Tab Toggle */}
+      <div className="lg:hidden mb-4">
+        <div className="flex gap-2 p-1 bg-muted/50 rounded-xl">
+          <button
+            type="button"
+            onClick={() => setMobileView("form")}
+            className={cn(
+              "flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all",
+              mobileView === "form"
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <FileText className="h-4 w-4" />
+            Formulaire
+          </button>
+          <button
+            type="button"
+            onClick={() => setMobileView("preview")}
+            className={cn(
+              "flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all relative",
+              mobileView === "preview"
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <Scale className="h-4 w-4" />
+            Aperçu
+            {result && mobileView === "form" && (
+              <span className="absolute top-1 right-1 w-2 h-2 bg-primary rounded-full animate-pulse" />
+            )}
+          </button>
         </div>
-        <div className="lg:sticky lg:top-6">
+      </div>
+
+      {/* Main Content */}
+      <div className="grid lg:grid-cols-2 gap-6">
+        {/* Form (Desktop always visible, Mobile conditional) */}
+        <div className={cn(
+          "lg:block",
+          mobileView === "form" ? "block" : "hidden"
+        )}>
+          <div className="min-h-[400px]">
+            {renderStep()}
+          </div>
+
+          {/* Navigation */}
+          <div className="flex justify-between mt-8 pt-6 border-t border-border/50">
+            {step > 1 ? (
+              <Button variant="outline" onClick={() => setStep(step - 1)}>
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Précédent
+              </Button>
+            ) : (
+              <div />
+            )}
+
+            {step < 5 ? (
+              <Button
+                onClick={() => setStep(step + 1)}
+                disabled={!canProceed()}
+                className="shadow-lg shadow-primary/20"
+              >
+                Suivant
+                <ArrowRight className="h-4 w-4 ml-2" />
+              </Button>
+            ) : (
+              <Button
+                onClick={handleGenerate}
+                disabled={isLoading || !canGenerate}
+                className="shadow-lg shadow-primary/20"
+              >
+                <FileEdit className="h-4 w-4 mr-2" />
+                {isLoading ? "Génération..." : "Générer le document"}
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {/* Preview (Desktop always visible, Mobile conditional) */}
+        <div className={cn(
+          "lg:block lg:sticky lg:top-6",
+          mobileView === "preview" ? "block" : "hidden"
+        )}>
           <DocumentPreview
             content={result}
             structuredResult={structuredResult}
