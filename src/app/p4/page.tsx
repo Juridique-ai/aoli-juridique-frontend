@@ -8,9 +8,10 @@ import { ToolProgress } from "@/components/shared/tool-progress";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { FileEdit, RotateCcw, HelpCircle, Send, User, Bot, Wand2 } from "lucide-react";
+import { FileEdit, RotateCcw, HelpCircle, Send, User, Bot, Wand2, Mail, Sparkles } from "lucide-react";
 import { endpoints } from "@/lib/api/endpoints";
 import { P4_DEMO_DATA } from "@/lib/demo-data";
+import { cn } from "@/lib/utils";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL;
 const API_KEY = process.env.NEXT_PUBLIC_API_KEY;
@@ -248,47 +249,76 @@ export default function P4Page() {
   };
 
   return (
-    <div className="container py-6">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold">Correspondance Juridique</h1>
-        <p className="text-muted-foreground mt-1">
-          Rédigez des courriers juridiques professionnels
-        </p>
+    <div className="container py-8 animate-fade-in">
+      {/* Page Header */}
+      <div className="mb-8 flex items-start justify-between">
+        <div className="flex items-start gap-4">
+          <div className="relative">
+            <div className="absolute inset-0 bg-primary/20 rounded-xl blur-lg" />
+            <div className="relative p-3 rounded-xl bg-primary/10 text-primary">
+              <Mail className="h-6 w-6" />
+            </div>
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">Correspondance Juridique</h1>
+            <p className="text-muted-foreground mt-1">
+              Rédigez des courriers juridiques professionnels
+            </p>
+          </div>
+        </div>
       </div>
 
       {/* Controls */}
-      <div className="flex flex-wrap items-center gap-4 mb-6">
-        <Button onClick={() => handleGenerate()} disabled={isLoading || !canGenerate}>
+      <div className={cn(
+        "flex flex-wrap items-center gap-3 mb-6 p-4 rounded-xl",
+        "bg-muted/30 border border-border/50"
+      )}>
+        <Button
+          onClick={() => handleGenerate()}
+          disabled={isLoading || !canGenerate}
+          className="shadow-lg shadow-primary/20"
+        >
           <FileEdit className="h-4 w-4 mr-2" />
           {isLoading ? "Génération en cours..." : "Générer le courrier"}
         </Button>
-        <Button variant="outline" onClick={reset}>
+
+        <div className="flex-1" />
+
+        <Button
+          variant="outline"
+          onClick={handleDemo}
+          className="hover:bg-primary/10 hover:text-primary hover:border-primary/30 transition-all"
+        >
+          <Sparkles className="h-4 w-4 mr-2" />
+          Démo
+        </Button>
+        <Button
+          variant="outline"
+          onClick={reset}
+          className="hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30 transition-all"
+        >
           <RotateCcw className="h-4 w-4 mr-2" />
           Réinitialiser
-        </Button>
-        <Button variant="outline" onClick={handleDemo}>
-          <Wand2 className="h-4 w-4 mr-2" />
-          Démo
         </Button>
       </div>
 
       {/* Tool Progress */}
       {currentTool && (
-        <div className="mb-4">
+        <div className="mb-4 animate-fade-in">
           <ToolProgress tool={currentTool} />
         </div>
       )}
 
       {/* Error */}
       {error && (
-        <div className="mb-4 p-4 bg-destructive/10 text-destructive rounded-lg">
+        <div className="mb-4 p-4 bg-destructive/10 text-destructive rounded-xl border border-destructive/20 animate-fade-in">
           {error}
         </div>
       )}
 
       {/* Clarification Questions */}
       {clarifyingQuestions.length > 0 && (
-        <Card className="mb-6 border-primary/20 bg-primary/5">
+        <Card className="mb-6 border-primary/30 bg-primary/5 backdrop-blur-sm animate-slide-up">
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2">
               <HelpCircle className="h-5 w-5 text-primary" />
@@ -298,7 +328,7 @@ export default function P4Page() {
           <CardContent className="space-y-4">
             {/* Previous conversation */}
             {conversation.length > 0 && (
-              <div className="space-y-3 mb-4 pb-4 border-b">
+              <div className="space-y-3 mb-4 pb-4 border-b border-border/50">
                 {conversation.map((msg, i) => (
                   <div key={i} className="flex gap-2">
                     {msg.role === "user" ? (
@@ -335,8 +365,13 @@ export default function P4Page() {
                   }
                 }}
                 disabled={isLoading}
+                className="bg-background/50"
               />
-              <Button onClick={handleClarificationSubmit} disabled={isLoading || !clarificationAnswer.trim()}>
+              <Button
+                onClick={handleClarificationSubmit}
+                disabled={isLoading || !clarificationAnswer.trim()}
+                className="shadow-lg shadow-primary/20"
+              >
                 <Send className="h-4 w-4" />
               </Button>
             </div>

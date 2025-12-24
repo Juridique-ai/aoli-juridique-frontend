@@ -11,9 +11,10 @@ import {
 } from "@/components/features/p2";
 import { ToolProgress } from "@/components/shared/tool-progress";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, ArrowRight, RotateCcw, Sparkles, Wand2 } from "lucide-react";
+import { ArrowLeft, ArrowRight, RotateCcw, Sparkles, Wand2, Building2 } from "lucide-react";
 import { endpoints } from "@/lib/api/endpoints";
 import { P2_DEMO_DATA } from "@/lib/demo-data";
+import { cn } from "@/lib/utils";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL;
 const API_KEY = process.env.NEXT_PUBLIC_API_KEY;
@@ -221,17 +222,30 @@ export default function P2Page() {
   };
 
   return (
-    <div className="container py-6 max-w-3xl">
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Assistant Création d&apos;Entreprise</h1>
-          <p className="text-muted-foreground mt-1">
-            Trouvez la structure juridique adaptée à votre projet
-          </p>
+    <div className="container py-8 max-w-3xl animate-fade-in">
+      {/* Page Header */}
+      <div className="mb-8 flex items-start justify-between">
+        <div className="flex items-start gap-4">
+          <div className="relative">
+            <div className="absolute inset-0 bg-primary/20 rounded-xl blur-lg" />
+            <div className="relative p-3 rounded-xl bg-primary/10 text-primary">
+              <Building2 className="h-6 w-6" />
+            </div>
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">Assistant Création d&apos;Entreprise</h1>
+            <p className="text-muted-foreground mt-1">
+              Trouvez la structure juridique adaptée à votre projet
+            </p>
+          </div>
         </div>
         {step === 1 && (
-          <Button variant="outline" onClick={handleDemo}>
-            <Wand2 className="h-4 w-4 mr-2" />
+          <Button
+            variant="outline"
+            onClick={handleDemo}
+            className="hover:bg-primary/10 hover:text-primary hover:border-primary/30 transition-all"
+          >
+            <Sparkles className="h-4 w-4 mr-2" />
             Démo
           </Button>
         )}
@@ -241,30 +255,41 @@ export default function P2Page() {
 
       {/* Tool Progress */}
       {currentTool && (
-        <div className="mb-4">
+        <div className="mb-4 animate-fade-in">
           <ToolProgress tool={currentTool} />
         </div>
       )}
 
       {/* Error */}
       {error && (
-        <div className="mb-4 p-4 bg-destructive/10 text-destructive rounded-lg">
+        <div className="mb-4 p-4 bg-destructive/10 text-destructive rounded-xl border border-destructive/20 animate-fade-in">
           {error}
         </div>
       )}
 
       {/* Step Content */}
-      <div className="min-h-[400px]">{renderStep()}</div>
+      <div className="min-h-[400px] animate-fade-in">{renderStep()}</div>
 
       {/* Navigation */}
-      <div className="flex justify-between mt-8 pt-6 border-t">
+      <div className={cn(
+        "flex justify-between mt-8 pt-6",
+        "border-t border-border/50"
+      )}>
         {step > 1 && step < 5 ? (
-          <Button variant="outline" onClick={prevStep}>
+          <Button
+            variant="outline"
+            onClick={prevStep}
+            className="hover:bg-muted/50"
+          >
             <ArrowLeft className="h-4 w-4 mr-2" />
             Précédent
           </Button>
         ) : step === 5 ? (
-          <Button variant="outline" onClick={reset}>
+          <Button
+            variant="outline"
+            onClick={reset}
+            className="hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30 transition-all"
+          >
             <RotateCcw className="h-4 w-4 mr-2" />
             Recommencer
           </Button>
@@ -273,14 +298,22 @@ export default function P2Page() {
         )}
 
         {step < 4 && (
-          <Button onClick={nextStep} disabled={!canProceed()}>
+          <Button
+            onClick={nextStep}
+            disabled={!canProceed()}
+            className="shadow-lg shadow-primary/20"
+          >
             Suivant
             <ArrowRight className="h-4 w-4 ml-2" />
           </Button>
         )}
 
         {step === 4 && (
-          <Button onClick={handleAnalyze} disabled={isLoading}>
+          <Button
+            onClick={handleAnalyze}
+            disabled={isLoading}
+            className="shadow-lg shadow-primary/20"
+          >
             <Sparkles className="h-4 w-4 mr-2" />
             Obtenir ma recommandation
           </Button>

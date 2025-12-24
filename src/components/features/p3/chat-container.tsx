@@ -7,9 +7,11 @@ import { ChatMessage } from "./chat-message";
 import { ChatInput } from "./chat-input";
 import { ClarificationCard } from "./clarification-card";
 import { ToolProgress } from "@/components/shared/tool-progress";
+import { TypingIndicator } from "@/components/shared/typing-indicator";
 import { JurisdictionSelect } from "@/components/shared/jurisdiction-select";
 import { Button } from "@/components/ui/button";
-import { Trash2, MessageSquare } from "lucide-react";
+import { Trash2, MessageSquare, Scale } from "lucide-react";
+import { cn } from "@/lib/utils";
 import type { Clarification, ClarificationAnswers } from "@/types";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL;
@@ -510,16 +512,23 @@ export function ChatContainer() {
     .reverse()
     .find((m) => m.clarification && !m.isStreaming);
 
+  // Check if we should show typing indicator (loading but no streaming message yet)
+  const showTypingIndicator = isLoading && !messages.some(m => m.isStreaming && m.content);
+
   return (
     <div className="flex flex-col h-[calc(100vh-14rem)]">
       {/* Header */}
-      <div className="flex items-center justify-between pb-4 border-b">
+      <div className={cn(
+        "flex items-center justify-between pb-4",
+        "border-b border-border/50"
+      )}>
         <JurisdictionSelect value={jurisdiction} onChange={setJurisdiction} />
         <Button
           variant="ghost"
           size="sm"
           onClick={clearChat}
           disabled={messages.length === 0}
+          className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
         >
           <Trash2 className="h-4 w-4 mr-2" />
           Effacer
@@ -527,27 +536,48 @@ export function ChatContainer() {
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto py-4">
+      <div className="flex-1 overflow-y-auto py-4 scroll-smooth">
         {messages.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground">
-            <MessageSquare className="h-12 w-12 mb-4 opacity-50" />
-            <p className="text-lg font-medium">Posez votre première question</p>
-            <p className="text-sm mt-2 max-w-md">
+          <div className="flex flex-col items-center justify-center h-full text-center animate-fade-in">
+            {/* Decorative icon */}
+            <div className="relative mb-6">
+              <div className="absolute inset-0 bg-primary/20 rounded-full blur-xl" />
+              <div className="relative p-4 rounded-2xl bg-primary/10 text-primary">
+                <Scale className="h-10 w-10" />
+              </div>
+            </div>
+
+            <h2 className="text-xl font-semibold mb-2">
+              Conseiller Juridique IA
+            </h2>
+            <p className="text-muted-foreground max-w-md leading-relaxed">
               Je peux vous aider avec vos questions juridiques concernant le droit français,
               belge, luxembourgeois et allemand.
             </p>
+
+            {/* Feature badges */}
+            <div className="flex flex-wrap justify-center gap-2 mt-6">
+              {["Droit du travail", "Droit des affaires", "Droit immobilier", "Droit de la famille"].map((topic) => (
+                <span
+                  key={topic}
+                  className="px-3 py-1 text-xs rounded-full bg-muted/50 text-muted-foreground border border-border/50"
+                >
+                  {topic}
+                </span>
+              ))}
+            </div>
           </div>
         ) : (
           <>
             {messages.map((msg) => (
-              <div key={msg.id}>
+              <div key={msg.id} className="animate-fade-in">
                 {/* Show message content if not a clarification-only message */}
                 {(msg.content || msg.isStreaming) && (
                   <ChatMessage message={msg} />
                 )}
                 {/* Show clarification card if present */}
                 {msg.clarification && !msg.isStreaming && (
-                  <div className="mb-4 ml-12">
+                  <div className="mb-4 ml-12 animate-slide-up">
                     <ClarificationCard
                       clarification={msg.clarification}
                       onSubmit={(answers) =>
@@ -559,18 +589,31 @@ export function ChatContainer() {
                 )}
               </div>
             ))}
+
+            {/* Typing indicator */}
+            {showTypingIndicator && <TypingIndicator className="animate-fade-in" />}
           </>
         )}
-        {currentTool && <ToolProgress tool={currentTool} />}
+        {currentTool && (
+          <div className="animate-fade-in">
+            <ToolProgress tool={currentTool} />
+          </div>
+        )}
         <div ref={messagesEndRef} />
       </div>
 
       {/* Input - hide when there's an active clarification */}
-      <div className="pt-4 border-t">
+      <div className={cn(
+        "pt-4",
+        "border-t border-border/50"
+      )}>
         {lastClarificationMessage ? (
-          <p className="text-sm text-muted-foreground text-center py-2">
-            Veuillez répondre aux questions ci-dessus pour continuer
-          </p>
+          <div className="flex items-center justify-center gap-2 py-3 px-4 rounded-lg bg-muted/30 text-muted-foreground">
+            <MessageSquare className="h-4 w-4" />
+            <p className="text-sm">
+              Veuillez répondre aux questions ci-dessus pour continuer
+            </p>
+          </div>
         ) : (
           <ChatInput onSend={handleSend} isLoading={isLoading} showDemo={messages.length === 0} />
         )}
