@@ -5,12 +5,13 @@ import { useP3Store } from "@/stores/p3-store";
 import { endpoints } from "@/lib/api/endpoints";
 import { ChatMessage } from "./chat-message";
 import { ChatInput } from "./chat-input";
+import { ChatOnboarding } from "./chat-onboarding";
 import { ClarificationCard } from "./clarification-card";
 import { ToolProgress } from "@/components/shared/tool-progress";
 import { TypingIndicator } from "@/components/shared/typing-indicator";
 import { JurisdictionSelect } from "@/components/shared/jurisdiction-select";
 import { Button } from "@/components/ui/button";
-import { Trash2, MessageSquare, Scale } from "lucide-react";
+import { Trash2, MessageSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Clarification, ClarificationAnswers } from "@/types";
 
@@ -538,57 +539,45 @@ export function ChatContainer() {
       {/* Messages */}
       <div className="flex-1 overflow-y-auto py-4 scroll-smooth">
         {messages.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-center animate-fade-in">
-            {/* Decorative icon */}
-            <div className="relative mb-6">
-              <div className="absolute inset-0 bg-primary/20 rounded-full blur-xl" />
-              <div className="relative p-4 rounded-2xl bg-primary/10 text-primary">
-                <Scale className="h-10 w-10" />
-              </div>
-            </div>
-
-            <h2 className="text-xl font-semibold mb-2">
-              Conseiller Juridique IA
-            </h2>
-            <p className="text-muted-foreground max-w-md leading-relaxed">
-              Je peux vous aider avec vos questions juridiques concernant le droit français,
-              belge, luxembourgeois et allemand.
-            </p>
-
-            {/* Feature badges */}
-            <div className="flex flex-wrap justify-center gap-2 mt-6">
-              {["Droit du travail", "Droit des affaires", "Droit immobilier", "Droit de la famille"].map((topic) => (
-                <span
-                  key={topic}
-                  className="px-3 py-1 text-xs rounded-full bg-muted/50 text-muted-foreground border border-border/50"
-                >
-                  {topic}
-                </span>
-              ))}
-            </div>
-          </div>
+          <ChatOnboarding onSelectQuestion={handleSend} />
         ) : (
           <>
-            {messages.map((msg) => (
-              <div key={msg.id} className="animate-fade-in">
-                {/* Show message content if not a clarification-only message */}
-                {(msg.content || msg.isStreaming) && (
-                  <ChatMessage message={msg} />
-                )}
-                {/* Show clarification card if present */}
-                {msg.clarification && !msg.isStreaming && (
-                  <div className="mb-4 ml-12 animate-slide-up">
-                    <ClarificationCard
-                      clarification={msg.clarification}
-                      onSubmit={(answers) =>
-                        handleClarificationSubmit(msg.id, msg.clarification!, answers)
-                      }
-                      disabled={isLoading || msg.id !== lastClarificationMessage?.id}
+            {messages.map((msg, index) => {
+              // Find if this is the last assistant message (for showing suggestions)
+              const assistantMessages = messages.filter(m => m.role === "assistant" && !m.isStreaming && m.content);
+              const isLastAssistant = Boolean(
+                msg.role === "assistant" &&
+                !msg.isStreaming &&
+                msg.content &&
+                assistantMessages[assistantMessages.length - 1]?.id === msg.id
+              );
+
+              return (
+                <div key={msg.id} className="animate-fade-in">
+                  {/* Show message content if not a clarification-only message */}
+                  {(msg.content || msg.isStreaming) && (
+                    <ChatMessage
+                      message={msg}
+                      isLastAssistantMessage={isLastAssistant}
+                      onSuggestionSelect={handleSend}
+                      isLoading={isLoading}
                     />
-                  </div>
-                )}
-              </div>
-            ))}
+                  )}
+                  {/* Show clarification card if present */}
+                  {msg.clarification && !msg.isStreaming && (
+                    <div className="mb-4 ml-12 animate-slide-up">
+                      <ClarificationCard
+                        clarification={msg.clarification}
+                        onSubmit={(answers) =>
+                          handleClarificationSubmit(msg.id, msg.clarification!, answers)
+                        }
+                        disabled={isLoading || msg.id !== lastClarificationMessage?.id}
+                      />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
 
             {/* Typing indicator */}
             {showTypingIndicator && <TypingIndicator className="animate-fade-in" />}

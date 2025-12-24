@@ -15,7 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowLeft, FileSearch, Wand2, FileText, Sparkles } from "lucide-react";
+import { ArrowLeft, FileSearch, FileText, Sparkles, FileIcon, BarChart3 } from "lucide-react";
 import { USER_PARTIES } from "@/lib/constants";
 import { endpoints } from "@/lib/api/endpoints";
 import { P1_DEMO_CONTRACT } from "@/lib/demo-data";
@@ -25,6 +25,8 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL;
 const API_KEY = process.env.NEXT_PUBLIC_API_KEY;
 
 export default function P1Page() {
+  const [mobileTab, setMobileTab] = useState<"document" | "analysis">("document");
+
   const {
     contractContent,
     documentFile,
@@ -274,14 +276,64 @@ export default function P1Page() {
         </div>
       )}
 
-      {/* Split View */}
-      <div className="grid lg:grid-cols-2 gap-6">
+      {/* Mobile Tab Navigation */}
+      <div className="lg:hidden mb-4">
+        <div className="flex gap-2 p-1 bg-muted/50 rounded-xl">
+          <button
+            type="button"
+            onClick={() => setMobileTab("document")}
+            className={cn(
+              "flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all",
+              mobileTab === "document"
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <FileIcon className="h-4 w-4" />
+            Document
+          </button>
+          <button
+            type="button"
+            onClick={() => setMobileTab("analysis")}
+            className={cn(
+              "flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all",
+              mobileTab === "analysis"
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground",
+              analysis && "relative"
+            )}
+          >
+            <BarChart3 className="h-4 w-4" />
+            Analyse
+            {/* Notification dot when analysis is ready */}
+            {analysis && mobileTab === "document" && (
+              <span className="absolute top-1 right-1 w-2 h-2 bg-primary rounded-full animate-pulse" />
+            )}
+          </button>
+        </div>
+      </div>
+
+      {/* Desktop: Split View / Mobile: Tab Content */}
+      <div className="hidden lg:grid lg:grid-cols-2 gap-6">
         <ContractViewer content={contractContent} documentFile={documentFile} />
         <AnalysisPanel
           content={analysis}
           isStreaming={isAnalyzing}
           isLoading={isAnalyzing}
         />
+      </div>
+
+      {/* Mobile: Single panel based on active tab */}
+      <div className="lg:hidden">
+        {mobileTab === "document" ? (
+          <ContractViewer content={contractContent} documentFile={documentFile} />
+        ) : (
+          <AnalysisPanel
+            content={analysis}
+            isStreaming={isAnalyzing}
+            isLoading={isAnalyzing}
+          />
+        )}
       </div>
     </div>
   );
