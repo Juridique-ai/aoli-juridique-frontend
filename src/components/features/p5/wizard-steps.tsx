@@ -19,9 +19,12 @@ import {
   Building2,
   User,
   HelpCircle,
+  UserCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { P4Party, P5Fact } from "@/types";
+import { useUserProfileStore, formatFullAddress } from "@/stores/user-profile-store";
+import { toast } from "sonner";
 
 // Step 1: Document Type Selection
 interface Step1Props {
@@ -174,6 +177,22 @@ export function Step3Parties({
   onPlaintiffChange,
   onDefendantChange,
 }: Step3Props) {
+  const { profile, isLoaded: profileLoaded } = useUserProfileStore();
+  const hasProfileInfo = profileLoaded && profile.fullName && profile.address;
+
+  const fillPlaintiffFromProfile = () => {
+    if (!profile.fullName) {
+      toast.error("Veuillez d'abord remplir votre profil");
+      return;
+    }
+    const fullAddress = formatFullAddress(profile);
+    const displayName = profile.company
+      ? `${profile.fullName} (${profile.company})`
+      : profile.fullName;
+    onPlaintiffChange({ name: displayName, address: fullAddress, role: profile.role });
+    toast.success("Demandeur pré-rempli depuis votre profil");
+  };
+
   return (
     <div className="space-y-6">
       <div className="text-center mb-8">
@@ -187,11 +206,24 @@ export function Step3Parties({
           "p-5 rounded-xl border-2 transition-all",
           plaintiff.name ? "border-primary/50 bg-primary/5" : "border-border/50 bg-card/50"
         )}>
-          <div className="flex items-center gap-2 mb-4">
-            <div className="p-2 rounded-lg bg-primary/10 text-primary">
-              <User className="h-4 w-4" />
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <div className="p-2 rounded-lg bg-primary/10 text-primary">
+                <User className="h-4 w-4" />
+              </div>
+              <h3 className="font-medium">Demandeur</h3>
             </div>
-            <h3 className="font-medium">Demandeur</h3>
+            {hasProfileInfo && !plaintiff.name && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={fillPlaintiffFromProfile}
+                className="text-xs h-7 text-primary hover:text-primary hover:bg-primary/10"
+              >
+                <UserCheck className="h-3 w-3 mr-1" />
+                Mon profil
+              </Button>
+            )}
           </div>
           <div className="space-y-4">
             <div className="space-y-2">

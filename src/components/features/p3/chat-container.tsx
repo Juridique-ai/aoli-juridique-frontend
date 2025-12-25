@@ -2,6 +2,7 @@
 
 import { useRef, useEffect, useCallback } from "react";
 import { useP3Store } from "@/stores/p3-store";
+import { useUserProfileStore } from "@/stores/user-profile-store";
 import { endpoints } from "@/lib/api/endpoints";
 import { ChatMessage } from "./chat-message";
 import { ChatInput } from "./chat-input";
@@ -335,6 +336,7 @@ export function ChatContainer() {
     setCurrentTool,
     clearChat,
   } = useP3Store();
+  const { profile } = useUserProfileStore();
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -377,6 +379,13 @@ export function ChatContainer() {
           message,
           jurisdiction,
           conversationHistory: conversationHistory.length > 0 ? conversationHistory : undefined,
+          // User context from profile for personalized advice
+          userContext: profile.fullName ? {
+            name: profile.fullName,
+            role: profile.role || undefined,
+            company: profile.company || undefined,
+            city: profile.city || undefined,
+          } : undefined,
         }),
       });
 
