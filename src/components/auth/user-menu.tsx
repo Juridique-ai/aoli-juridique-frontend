@@ -12,9 +12,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { User, LogOut, Loader2 } from "lucide-react";
+import { useUserProfileStore } from "@/stores/user-profile-store";
 
 export function UserMenu() {
   const { data: session, status } = useSession();
+  const { profile } = useUserProfileStore();
 
   if (status === "loading") {
     return (
@@ -32,12 +34,14 @@ export function UserMenu() {
     );
   }
 
-  const initials = session.user?.name
-    ?.split(" ")
+  // Use profile name first, then session name, then fallback
+  const displayName = profile.fullName || session.user?.name || session.user?.email;
+  const initials = (profile.fullName || session.user?.name || "U")
+    .split(" ")
     .map((n) => n[0])
     .join("")
     .toUpperCase()
-    .slice(0, 2) || "U";
+    .slice(0, 2);
 
   return (
     <DropdownMenu>
@@ -49,13 +53,13 @@ export function UserMenu() {
             </AvatarFallback>
           </Avatar>
           <span className="hidden sm:inline max-w-[150px] truncate">
-            {session.user?.name || session.user?.email}
+            {displayName}
           </span>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">
         <div className="px-2 py-1.5">
-          <p className="text-sm font-medium">{session.user?.name}</p>
+          <p className="text-sm font-medium">{displayName}</p>
           <p className="text-xs text-muted-foreground truncate">
             {session.user?.email}
           </p>
