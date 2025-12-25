@@ -16,7 +16,7 @@ import { useUserProfileStore } from "@/stores/user-profile-store";
 
 export function UserMenu() {
   const { data: session, status } = useSession();
-  const { profile } = useUserProfileStore();
+  const { profile, isLoaded } = useUserProfileStore();
 
   if (status === "loading") {
     return (
@@ -34,9 +34,12 @@ export function UserMenu() {
     );
   }
 
-  // Use profile name first, then session name, then fallback
-  const displayName = profile.fullName || session.user?.name || session.user?.email;
-  const initials = (profile.fullName || session.user?.name || "U")
+  // Use profile name first (if loaded), then session name (but not "unknown"), then email
+  const sessionName = session.user?.name && session.user.name.toLowerCase() !== "unknown"
+    ? session.user.name
+    : null;
+  const displayName = (isLoaded && profile.fullName) || sessionName || session.user?.email || "Utilisateur";
+  const initials = ((isLoaded && profile.fullName) || sessionName || "U")
     .split(" ")
     .map((n) => n[0])
     .join("")
