@@ -29,9 +29,8 @@ export default function RootLayout({
         <SessionProvider>
           <ThemeProvider
             attribute="class"
-            defaultTheme="system"
+            defaultTheme="dark"
             enableSystem
-            disableTransitionOnChange
           >
             <div className="relative flex min-h-screen flex-col">
               <Header />

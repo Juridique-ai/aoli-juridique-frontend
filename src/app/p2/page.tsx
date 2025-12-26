@@ -9,11 +9,14 @@ import {
   StepPreferences,
   StepResult,
 } from "@/components/features/p2";
+import { WizardSummary } from "@/components/features/p2/wizard-summary";
 import { ToolProgress } from "@/components/shared/tool-progress";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, ArrowRight, RotateCcw, Sparkles, Wand2 } from "lucide-react";
+import { ArrowLeft, ArrowRight, RotateCcw, Sparkles, Building2, ClipboardList } from "lucide-react";
 import { endpoints } from "@/lib/api/endpoints";
 import { P2_DEMO_DATA } from "@/lib/demo-data";
+import { cn } from "@/lib/utils";
+import { useState } from "react";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL;
 const API_KEY = process.env.NEXT_PUBLIC_API_KEY;
@@ -21,6 +24,8 @@ const API_KEY = process.env.NEXT_PUBLIC_API_KEY;
 const STEPS = ["Pays", "Activité", "Détails", "Préférences", "Résultat"];
 
 export default function P2Page() {
+  const [showMobileSummary, setShowMobileSummary] = useState(false);
+
   const {
     step,
     country,
@@ -221,70 +226,143 @@ export default function P2Page() {
   };
 
   return (
-    <div className="container py-6 max-w-3xl">
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Assistant Création d&apos;Entreprise</h1>
-          <p className="text-muted-foreground mt-1">
-            Trouvez la structure juridique adaptée à votre projet
-          </p>
+    <div className="container py-8 animate-fade-in">
+      {/* Page Header */}
+      <div className="mb-6 flex items-start justify-between">
+        <div className="flex items-start gap-4">
+          <div className="relative">
+            <div className="absolute inset-0 bg-primary/20 rounded-xl blur-lg" />
+            <div className="relative p-3 rounded-xl bg-primary/10 text-primary">
+              <Building2 className="h-6 w-6" />
+            </div>
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">Assistant Création d&apos;Entreprise</h1>
+            <p className="text-muted-foreground mt-1">
+              Trouvez la structure juridique adaptée à votre projet
+            </p>
+          </div>
         </div>
-        {step === 1 && (
-          <Button variant="outline" onClick={handleDemo}>
-            <Wand2 className="h-4 w-4 mr-2" />
-            Démo
+        <div className="flex gap-2">
+          {step === 1 && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleDemo}
+              className="hover:bg-primary/10 hover:text-primary hover:border-primary/30 transition-all"
+            >
+              <Sparkles className="h-4 w-4 mr-2" />
+              Démo
+            </Button>
+          )}
+          {/* Mobile summary toggle */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowMobileSummary(!showMobileSummary)}
+            className="lg:hidden hover:bg-primary/10 hover:text-primary hover:border-primary/30 transition-all"
+          >
+            <ClipboardList className="h-4 w-4 mr-2" />
+            Récapitulatif
           </Button>
-        )}
+        </div>
       </div>
 
-      <WizardProgress currentStep={step} totalSteps={5} steps={STEPS} />
-
-      {/* Tool Progress */}
-      {currentTool && (
-        <div className="mb-4">
-          <ToolProgress tool={currentTool} />
+      {/* Mobile Summary Drawer */}
+      {showMobileSummary && (
+        <div className="lg:hidden mb-6 p-4 rounded-xl bg-muted/30 border border-border/50 animate-fade-in">
+          <WizardSummary
+            country={country}
+            questionnaire={questionnaire}
+            currentStep={step}
+          />
         </div>
       )}
 
-      {/* Error */}
-      {error && (
-        <div className="mb-4 p-4 bg-destructive/10 text-destructive rounded-lg">
-          {error}
+      {/* Main content with sidebar on desktop */}
+      <div className="flex flex-col lg:flex-row gap-6">
+        {/* Main wizard area */}
+        <div className="flex-1 space-y-6">
+          <WizardProgress currentStep={step} totalSteps={5} steps={STEPS} />
+
+          {/* Tool Progress */}
+          {currentTool && (
+            <div className="animate-fade-in">
+              <ToolProgress tool={currentTool} />
+            </div>
+          )}
+
+          {/* Error */}
+          {error && (
+            <div className="p-4 bg-destructive/10 text-destructive rounded-xl border border-destructive/20 animate-fade-in">
+              {error}
+            </div>
+          )}
+
+          {/* Step Content */}
+          <div className="min-h-[400px] animate-fade-in">{renderStep()}</div>
+
+          {/* Navigation */}
+          <div className={cn(
+            "flex justify-between pt-6",
+            "border-t border-border/50"
+          )}>
+            {step > 1 && step < 5 ? (
+              <Button
+                variant="outline"
+                onClick={prevStep}
+                className="hover:bg-muted/50"
+              >
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Précédent
+              </Button>
+            ) : step === 5 ? (
+              <Button
+                variant="outline"
+                onClick={reset}
+                className="hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30 transition-all"
+              >
+                <RotateCcw className="h-4 w-4 mr-2" />
+                Recommencer
+              </Button>
+            ) : (
+              <div />
+            )}
+
+            {step < 4 && (
+              <Button
+                onClick={nextStep}
+                disabled={!canProceed()}
+                className="shadow-lg shadow-primary/20"
+              >
+                Suivant
+                <ArrowRight className="h-4 w-4 ml-2" />
+              </Button>
+            )}
+
+            {step === 4 && (
+              <Button
+                onClick={handleAnalyze}
+                disabled={isLoading}
+                className="shadow-lg shadow-primary/20"
+              >
+                <Sparkles className="h-4 w-4 mr-2" />
+                Obtenir ma recommandation
+              </Button>
+            )}
+          </div>
         </div>
-      )}
 
-      {/* Step Content */}
-      <div className="min-h-[400px]">{renderStep()}</div>
-
-      {/* Navigation */}
-      <div className="flex justify-between mt-8 pt-6 border-t">
-        {step > 1 && step < 5 ? (
-          <Button variant="outline" onClick={prevStep}>
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Précédent
-          </Button>
-        ) : step === 5 ? (
-          <Button variant="outline" onClick={reset}>
-            <RotateCcw className="h-4 w-4 mr-2" />
-            Recommencer
-          </Button>
-        ) : (
-          <div />
-        )}
-
-        {step < 4 && (
-          <Button onClick={nextStep} disabled={!canProceed()}>
-            Suivant
-            <ArrowRight className="h-4 w-4 ml-2" />
-          </Button>
-        )}
-
-        {step === 4 && (
-          <Button onClick={handleAnalyze} disabled={isLoading}>
-            <Sparkles className="h-4 w-4 mr-2" />
-            Obtenir ma recommandation
-          </Button>
-        )}
+        {/* Desktop Summary Sidebar */}
+        <div className="hidden lg:block w-72 flex-shrink-0">
+          <div className="sticky top-6 p-4 rounded-xl bg-muted/30 border border-border/50">
+            <WizardSummary
+              country={country}
+              questionnaire={questionnaire}
+              currentStep={step}
+            />
+          </div>
+        </div>
       </div>
     </div>
   );

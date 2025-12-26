@@ -2,14 +2,18 @@
 
 import { useRef, useEffect, useCallback } from "react";
 import { useP3Store } from "@/stores/p3-store";
+import { useUserProfileStore } from "@/stores/user-profile-store";
 import { endpoints } from "@/lib/api/endpoints";
 import { ChatMessage } from "./chat-message";
 import { ChatInput } from "./chat-input";
+import { ChatOnboarding } from "./chat-onboarding";
 import { ClarificationCard } from "./clarification-card";
 import { ToolProgress } from "@/components/shared/tool-progress";
+import { TypingIndicator } from "@/components/shared/typing-indicator";
 import { JurisdictionSelect } from "@/components/shared/jurisdiction-select";
 import { Button } from "@/components/ui/button";
 import { Trash2, MessageSquare } from "lucide-react";
+import { cn } from "@/lib/utils";
 import type { Clarification, ClarificationAnswers } from "@/types";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL;
@@ -53,17 +57,55 @@ function tryParseJSON(content: string): Record<string, unknown> | null {
 function extractClarification(content: string): Clarification | null {
   try {
     // Trim whitespace and try to parse
-    const trimmed = content.trim();
+    let trimmed = content.trim();
+
+    // Handle markdown code blocks
+    if (trimmed.startsWith("```")) {
+      const lines = trimmed.split("\n");
+      lines.shift();
+      if (lines[lines.length - 1]?.trim() === "```") {
+        lines.pop();
+      }
+      trimmed = lines.join("\n").trim();
+    }
+
     const parsed = JSON.parse(trimmed);
+
+    // New format: { title, questions_json } where questions_json is a string
+    if (parsed.title && parsed.questions_json) {
+      const questions = typeof parsed.questions_json === "string"
+        ? JSON.parse(parsed.questions_json)
+        : parsed.questions_json;
+      return {
+        title: parsed.title,
+        questions,
+      } as Clarification;
+    }
+
+    // Direct format: { title, questions }
+    if (parsed.title && parsed.questions) {
+      return parsed as Clarification;
+    }
+
+    // Legacy format: { phase: "clarification", clarification: { ... } }
     if (parsed.phase === "clarification" && parsed.clarification?.questions) {
       return parsed.clarification as Clarification;
     }
   } catch (e) {
     // Try to find JSON in the content (in case there's text before/after)
-    const jsonMatch = content.match(/\{[\s\S]*"phase"\s*:\s*"clarification"[\s\S]*\}/);
+    const jsonMatch = content.match(/\{[\s\S]*"(questions_json|questions)"[\s\S]*\}/);
     if (jsonMatch) {
       try {
         const parsed = JSON.parse(jsonMatch[0]);
+        if (parsed.title && parsed.questions_json) {
+          const questions = typeof parsed.questions_json === "string"
+            ? JSON.parse(parsed.questions_json)
+            : parsed.questions_json;
+          return { title: parsed.title, questions } as Clarification;
+        }
+        if (parsed.title && parsed.questions) {
+          return parsed as Clarification;
+        }
         if (parsed.clarification?.questions) {
           return parsed.clarification as Clarification;
         }
@@ -77,6 +119,7 @@ function extractClarification(content: string): Clarification | null {
 
 // Format legal opinion from tool-based structured data
 interface LegalOpinionEvent {
+  // camelCase (frontend standard)
   factsSummary?: string;
   analysisSummary?: string;
   applicableLaws?: Array<{ name: string; articles: string[]; relevance: string }>;
@@ -87,48 +130,83 @@ interface LegalOpinionEvent {
   recommendationRationale?: string;
   immediateActions?: string[];
   disclaimer?: string;
+  // snake_case (backend format)
+  facts_summary?: string;
+  analysis_summary?: string;
+  applicable_laws?: string | Array<{ name: string; articles: string[]; relevance: string }>;
+  risk_level?: string;
+  risk_details?: string;
+  options_json?: string | Array<{ option: string; description: string; pros: string[]; cons: string[]; successProbability: string }>;
+  recommended_option?: string;
+  recommendation_rationale?: string;
+  immediate_actions?: string | string[];
 }
 
 function formatLegalOpinionFromTool(opinion: LegalOpinionEvent): string {
   const parts: string[] = [];
 
-  if (opinion.factsSummary) {
-    parts.push(`## Résumé des faits\n${opinion.factsSummary}`);
+  // Helper to parse JSON strings
+  const parseIfString = <T,>(val: string | T | undefined): T | undefined => {
+    if (typeof val === "string") {
+      try {
+        return JSON.parse(val) as T;
+      } catch {
+        return undefined;
+      }
+    }
+    return val as T | undefined;
+  };
+
+  // Support both camelCase and snake_case
+  const factsSummary = opinion.factsSummary || opinion.facts_summary;
+  const analysisSummary = opinion.analysisSummary || opinion.analysis_summary;
+  const riskLevel = opinion.riskLevel || opinion.risk_level;
+  const riskDetails = opinion.riskDetails || opinion.risk_details;
+  const recommendedOption = opinion.recommendedOption || opinion.recommended_option;
+  const recommendationRationale = opinion.recommendationRationale || opinion.recommendation_rationale;
+
+  // Parse arrays that might be JSON strings
+  const applicableLaws = parseIfString(opinion.applicableLaws) || parseIfString(opinion.applicable_laws);
+  const options = parseIfString(opinion.options) || parseIfString(opinion.options_json);
+  const immediateActions = parseIfString(opinion.immediateActions) || parseIfString(opinion.immediate_actions);
+
+  if (factsSummary) {
+    parts.push(`## Résumé des faits\n${factsSummary}`);
   }
 
-  if (opinion.analysisSummary) {
-    parts.push(`## Analyse juridique\n${opinion.analysisSummary}`);
+  if (analysisSummary) {
+    parts.push(`## Analyse juridique\n${analysisSummary}`);
   }
 
-  if (opinion.applicableLaws && opinion.applicableLaws.length > 0) {
-    const laws = opinion.applicableLaws
+  if (applicableLaws && Array.isArray(applicableLaws) && applicableLaws.length > 0) {
+    const laws = applicableLaws
       .map((law) => `- **${law.name}** (${law.articles.join(", ")}): ${law.relevance}`)
       .join("\n");
     parts.push(`## Cadre juridique\n${laws}`);
   }
 
-  if (opinion.riskLevel) {
-    const riskEmoji = opinion.riskLevel === "high" ? "🔴" : opinion.riskLevel === "medium" ? "🟠" : "🟢";
-    parts.push(`## Évaluation des risques\n${riskEmoji} **Niveau: ${opinion.riskLevel}**\n\n${opinion.riskDetails || ""}`);
+  if (riskLevel) {
+    const riskEmoji = riskLevel === "high" ? "🔴" : riskLevel === "medium" ? "🟠" : "🟢";
+    parts.push(`## Évaluation des risques\n${riskEmoji} **Niveau: ${riskLevel}**\n\n${riskDetails || ""}`);
   }
 
-  if (opinion.options && opinion.options.length > 0) {
-    const optionsText = opinion.options
+  if (options && Array.isArray(options) && options.length > 0) {
+    const optionsText = options
       .map((opt) => {
-        const pros = opt.pros?.map((p) => `  - ✅ ${p}`).join("\n") || "";
-        const cons = opt.cons?.map((c) => `  - ❌ ${c}`).join("\n") || "";
+        const pros = opt.pros?.map((p: string) => `  - ✅ ${p}`).join("\n") || "";
+        const cons = opt.cons?.map((c: string) => `  - ❌ ${c}`).join("\n") || "";
         return `### ${opt.option}\n${opt.description}\n\n**Avantages:**\n${pros}\n\n**Inconvénients:**\n${cons}\n\n*Probabilité de succès: ${opt.successProbability}*`;
       })
       .join("\n\n");
     parts.push(`## Options\n${optionsText}`);
   }
 
-  if (opinion.recommendedOption) {
-    parts.push(`## Recommandation\n**${opinion.recommendedOption}**\n\n${opinion.recommendationRationale || ""}`);
+  if (recommendedOption) {
+    parts.push(`## Recommandation\n**${recommendedOption}**\n\n${recommendationRationale || ""}`);
   }
 
-  if (opinion.immediateActions && opinion.immediateActions.length > 0) {
-    const actions = opinion.immediateActions.map((a) => `- ${a}`).join("\n");
+  if (immediateActions && Array.isArray(immediateActions) && immediateActions.length > 0) {
+    const actions = immediateActions.map((a) => `- ${a}`).join("\n");
     parts.push(`## Actions immédiates\n${actions}`);
   }
 
@@ -142,7 +220,9 @@ function formatLegalOpinionFromTool(opinion: LegalOpinionEvent): string {
 // Format any structured JSON response into readable markdown
 function formatStructuredResponse(data: Record<string, unknown>): string | null {
   // Check for legal opinion structure (from submit_legal_opinion tool)
-  if (data.factsSummary || data.analysisSummary || data.legalOpinion) {
+  // Support both camelCase and snake_case
+  if (data.factsSummary || data.analysisSummary || data.legalOpinion ||
+      data.facts_summary || data.analysis_summary) {
     if (data.legalOpinion) {
       return formatLegalOpinion(data.legalOpinion as Record<string, unknown>);
     }
@@ -256,6 +336,7 @@ export function ChatContainer() {
     setCurrentTool,
     clearChat,
   } = useP3Store();
+  const { profile } = useUserProfileStore();
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -298,6 +379,13 @@ export function ChatContainer() {
           message,
           jurisdiction,
           conversationHistory: conversationHistory.length > 0 ? conversationHistory : undefined,
+          // User context from profile for personalized advice
+          userContext: profile.fullName ? {
+            name: profile.fullName,
+            role: profile.role || undefined,
+            company: profile.company || undefined,
+            city: profile.city || undefined,
+          } : undefined,
         }),
       });
 
@@ -510,16 +598,23 @@ export function ChatContainer() {
     .reverse()
     .find((m) => m.clarification && !m.isStreaming);
 
+  // Check if we should show typing indicator (loading but no streaming message yet)
+  const showTypingIndicator = isLoading && !messages.some(m => m.isStreaming && m.content);
+
   return (
     <div className="flex flex-col h-[calc(100vh-14rem)]">
       {/* Header */}
-      <div className="flex items-center justify-between pb-4 border-b">
+      <div className={cn(
+        "flex items-center justify-between pb-4",
+        "border-b border-border/50"
+      )}>
         <JurisdictionSelect value={jurisdiction} onChange={setJurisdiction} />
         <Button
           variant="ghost"
           size="sm"
           onClick={clearChat}
           disabled={messages.length === 0}
+          className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
         >
           <Trash2 className="h-4 w-4 mr-2" />
           Effacer
@@ -527,50 +622,72 @@ export function ChatContainer() {
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto py-4">
+      <div className="flex-1 overflow-y-auto py-4 scroll-smooth">
         {messages.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground">
-            <MessageSquare className="h-12 w-12 mb-4 opacity-50" />
-            <p className="text-lg font-medium">Posez votre première question</p>
-            <p className="text-sm mt-2 max-w-md">
-              Je peux vous aider avec vos questions juridiques concernant le droit français,
-              belge, luxembourgeois et allemand.
-            </p>
-          </div>
+          <ChatOnboarding onSelectQuestion={handleSend} />
         ) : (
           <>
-            {messages.map((msg) => (
-              <div key={msg.id}>
-                {/* Show message content if not a clarification-only message */}
-                {(msg.content || msg.isStreaming) && (
-                  <ChatMessage message={msg} />
-                )}
-                {/* Show clarification card if present */}
-                {msg.clarification && !msg.isStreaming && (
-                  <div className="mb-4 ml-12">
-                    <ClarificationCard
-                      clarification={msg.clarification}
-                      onSubmit={(answers) =>
-                        handleClarificationSubmit(msg.id, msg.clarification!, answers)
-                      }
-                      disabled={isLoading || msg.id !== lastClarificationMessage?.id}
+            {messages.map((msg, index) => {
+              // Find if this is the last assistant message (for showing suggestions)
+              const assistantMessages = messages.filter(m => m.role === "assistant" && !m.isStreaming && m.content);
+              const isLastAssistant = Boolean(
+                msg.role === "assistant" &&
+                !msg.isStreaming &&
+                msg.content &&
+                assistantMessages[assistantMessages.length - 1]?.id === msg.id
+              );
+
+              return (
+                <div key={msg.id} className="animate-fade-in">
+                  {/* Show message content if not a clarification-only message */}
+                  {(msg.content || msg.isStreaming) && (
+                    <ChatMessage
+                      message={msg}
+                      isLastAssistantMessage={isLastAssistant}
+                      onSuggestionSelect={handleSend}
+                      isLoading={isLoading}
                     />
-                  </div>
-                )}
-              </div>
-            ))}
+                  )}
+                  {/* Show clarification card if present */}
+                  {msg.clarification && !msg.isStreaming && (
+                    <div className="mb-4 ml-12 animate-slide-up">
+                      <ClarificationCard
+                        clarification={msg.clarification}
+                        onSubmit={(answers) =>
+                          handleClarificationSubmit(msg.id, msg.clarification!, answers)
+                        }
+                        disabled={isLoading || msg.id !== lastClarificationMessage?.id}
+                      />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+
+            {/* Typing indicator */}
+            {showTypingIndicator && <TypingIndicator className="animate-fade-in" />}
           </>
         )}
-        {currentTool && <ToolProgress tool={currentTool} />}
+        {currentTool && (
+          <div className="animate-fade-in">
+            <ToolProgress tool={currentTool} />
+          </div>
+        )}
         <div ref={messagesEndRef} />
       </div>
 
       {/* Input - hide when there's an active clarification */}
-      <div className="pt-4 border-t">
+      <div className={cn(
+        "pt-4",
+        "border-t border-border/50"
+      )}>
         {lastClarificationMessage ? (
-          <p className="text-sm text-muted-foreground text-center py-2">
-            Veuillez répondre aux questions ci-dessus pour continuer
-          </p>
+          <div className="flex items-center justify-center gap-2 py-3 px-4 rounded-lg bg-muted/30 text-muted-foreground">
+            <MessageSquare className="h-4 w-4" />
+            <p className="text-sm">
+              Veuillez répondre aux questions ci-dessus pour continuer
+            </p>
+          </div>
         ) : (
           <ChatInput onSend={handleSend} isLoading={isLoading} showDemo={messages.length === 0} />
         )}
