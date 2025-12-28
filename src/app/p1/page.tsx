@@ -40,8 +40,9 @@ export default function P1Page() {
     reset,
   } = useP1Store();
 
-  const handleAnalyze = async () => {
-    if (!contractContent) return;
+  const handleAnalyze = async (content?: string) => {
+    const docContent = content || contractContent;
+    if (!docContent) return;
 
     setAnalysis("");
     setAnalyzing(true);
@@ -58,7 +59,7 @@ export default function P1Page() {
           Accept: "text/event-stream",
         },
         body: JSON.stringify({
-          documentContent: contractContent,
+          documentContent: docContent,
           userParty,
           jurisdiction,
         }),
@@ -177,19 +178,15 @@ export default function P1Page() {
 
   const handleDemo = () => {
     setDocument(P1_DEMO_CONTRACT, null);
-    // Auto-start analysis after demo load
-    setTimeout(() => {
-      handleAnalyze();
-    }, 100);
+    // Auto-start analysis with demo content
+    handleAnalyze(P1_DEMO_CONTRACT);
   };
 
   // Auto-start analysis when document is uploaded
   const handleDocumentUpload = (content: string, file: { fileName: string; fileType: string; uri: string } | null) => {
     setDocument(content, file);
-    // Auto-start analysis after upload
-    setTimeout(() => {
-      handleAnalyze();
-    }, 100);
+    // Auto-start analysis with uploaded content
+    handleAnalyze(content);
   };
 
   const isComplete = completedPhases.length === ALL_PHASES.length;
