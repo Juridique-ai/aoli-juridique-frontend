@@ -6,6 +6,19 @@ interface ConversationMessage {
   content: string;
 }
 
+// Phase results for progressive display
+export interface P5PhaseResults {
+  metadata: Record<string, unknown> | null;
+  facts: Record<string, unknown> | null;
+  legal_args: Record<string, unknown> | null;
+  claims: Record<string, unknown> | null;
+  draft: Record<string, unknown> | null;
+  exhibits: Record<string, unknown> | null;
+  filing: Record<string, unknown> | null;
+}
+
+export type P5Phase = keyof P5PhaseResults;
+
 interface P5State {
   documentType: string;
   jurisdiction: string;
@@ -23,7 +36,12 @@ interface P5State {
   clarifyingQuestions: string[];
   isLoading: boolean;
   currentTool: string | null;
+  progressMessage: string | null;
   error: string | null;
+  // Phase-based results for progressive display
+  phaseResults: P5PhaseResults;
+  completedPhases: P5Phase[];
+  currentPhase: P5Phase | null;
   setDocumentType: (type: string) => void;
   setJurisdiction: (jurisdiction: string) => void;
   setCourt: (court: string) => void;
@@ -46,11 +64,25 @@ interface P5State {
   clearClarifyingQuestions: () => void;
   setLoading: (loading: boolean) => void;
   setCurrentTool: (tool: string | null) => void;
+  setProgressMessage: (message: string | null) => void;
   setError: (error: string | null) => void;
+  // Phase management
+  setPhaseResult: (phase: P5Phase, result: Record<string, unknown>) => void;
+  setCurrentPhase: (phase: P5Phase | null) => void;
   reset: () => void;
 }
 
 const emptyParty: P4Party = { name: "", address: "", role: "" };
+
+const initialPhaseResults: P5PhaseResults = {
+  metadata: null,
+  facts: null,
+  legal_args: null,
+  claims: null,
+  draft: null,
+  exhibits: null,
+  filing: null,
+};
 
 export const useP5Store = create<P5State>((set) => ({
   documentType: "assignation",
@@ -68,7 +100,11 @@ export const useP5Store = create<P5State>((set) => ({
   clarifyingQuestions: [],
   isLoading: false,
   currentTool: null,
+  progressMessage: null,
   error: null,
+  phaseResults: initialPhaseResults,
+  completedPhases: [],
+  currentPhase: null,
 
   setDocumentType: (documentType) => set({ documentType }),
   setJurisdiction: (jurisdiction) => set({ jurisdiction }),
@@ -93,7 +129,15 @@ export const useP5Store = create<P5State>((set) => ({
   clearClarifyingQuestions: () => set({ clarifyingQuestions: [] }),
   setLoading: (isLoading) => set({ isLoading }),
   setCurrentTool: (currentTool) => set({ currentTool }),
+  setProgressMessage: (progressMessage) => set({ progressMessage }),
   setError: (error) => set({ error }),
+  setPhaseResult: (phase, result) => set((s) => ({
+    phaseResults: { ...s.phaseResults, [phase]: result },
+    completedPhases: s.completedPhases.includes(phase)
+      ? s.completedPhases
+      : [...s.completedPhases, phase],
+  })),
+  setCurrentPhase: (currentPhase) => set({ currentPhase }),
   reset: () =>
     set({
       documentType: "assignation",
@@ -110,6 +154,10 @@ export const useP5Store = create<P5State>((set) => ({
       clarifyingQuestions: [],
       isLoading: false,
       currentTool: null,
+      progressMessage: null,
       error: null,
+      phaseResults: initialPhaseResults,
+      completedPhases: [],
+      currentPhase: null,
     }),
 }));

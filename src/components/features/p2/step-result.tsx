@@ -5,7 +5,8 @@ import { StreamingText } from "@/components/shared/streaming-text";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Building2, CheckCircle, Euro, Clock, FileText, TrendingUp, AlertTriangle } from "lucide-react";
+import { Building2, CheckCircle, Euro, Clock, FileText, TrendingUp, AlertTriangle, CheckSquare, Link2 } from "lucide-react";
+import type { P2Phase, P2PhaseResults } from "@/stores/p2-store";
 
 interface FormationResult {
   error?: string;
@@ -15,6 +16,7 @@ interface FormationResult {
   };
   recommendation?: {
     structure?: string;
+    structureName?: string;
     name?: string;
     matchScore?: number;
     reasons?: string[];
@@ -40,8 +42,9 @@ interface FormationResult {
       capital?: number;
       autres?: number;
     };
-    annualCosts?: Array<{ name: string; amount: string }>;
+    annualCosts?: Array<{ name: string; amount?: string; amountMin?: number; amountMax?: number }>;
     total?: number;
+    sources?: string[];
   };
   timeline?: {
     totalDays?: number;
@@ -52,6 +55,23 @@ interface FormationResult {
       description?: string;
     }>;
   };
+  checklist?: {
+    documents?: Array<{
+      name: string;
+      description?: string;
+      required?: boolean;
+      source?: string;
+    }>;
+    administrative?: string[];
+  };
+  resources?: Array<{
+    name: string;
+    url: string;
+    description?: string;
+    category?: string;
+  }>;
+  nextSteps?: string[];
+  warnings?: string[];
   disclaimer?: string;
 }
 
@@ -63,16 +83,73 @@ function parseResult(content: string): FormationResult | null {
   }
 }
 
+// Build result from phase data
+function buildResultFromPhases(phaseResults: P2PhaseResults, completedPhases: P2Phase[]): FormationResult | null {
+  if (completedPhases.length === 0) return null;
+
+  const result: FormationResult = {};
+
+  if (phaseResults.profile) {
+    result.profileAnalysis = phaseResults.profile as FormationResult["profileAnalysis"];
+  }
+
+  if (phaseResults.recommendation) {
+    const recData = phaseResults.recommendation as Record<string, unknown>;
+    result.recommendation = recData.recommendation as FormationResult["recommendation"];
+    result.alternatives = recData.alternatives as FormationResult["alternatives"];
+  }
+
+  if (phaseResults.comparison) {
+    const compData = phaseResults.comparison as Record<string, unknown>;
+    result.comparison = compData.structures as FormationResult["comparison"];
+  }
+
+  if (phaseResults.costs) {
+    const costsData = phaseResults.costs as Record<string, unknown>;
+    result.costs = {
+      annualCosts: costsData.annualCosts as Array<{ name: string; amount?: string; amountMin?: number; amountMax?: number }>,
+      sources: costsData.sources as string[],
+    };
+  }
+
+  if (phaseResults.timeline) {
+    result.timeline = phaseResults.timeline as FormationResult["timeline"];
+  }
+
+  if (phaseResults.checklist) {
+    result.checklist = phaseResults.checklist as FormationResult["checklist"];
+  }
+
+  if (phaseResults.resources) {
+    const resData = phaseResults.resources as Record<string, unknown>;
+    result.resources = resData.resources as FormationResult["resources"];
+  }
+
+  return result;
+}
+
 interface StepResultProps {
   content: string;
   isStreaming: boolean;
   isLoading: boolean;
+  phaseResults?: P2PhaseResults;
+  completedPhases?: P2Phase[];
 }
 
-export function StepResult({ content, isStreaming, isLoading }: StepResultProps) {
-  const result = useMemo(() => parseResult(content), [content]);
+export function StepResult({ content, isStreaming, isLoading, phaseResults, completedPhases }: StepResultProps) {
+  // Try to build result from phase data first, fall back to parsed content
+  const result = useMemo(() => {
+    // If we have completed phases, build from those
+    if (phaseResults && completedPhases && completedPhases.length > 0) {
+      return buildResultFromPhases(phaseResults, completedPhases);
+    }
+    // Otherwise parse from content string
+    return parseResult(content);
+  }, [content, phaseResults, completedPhases]);
 
-  if (isLoading && !content) {
+  // Show skeleton only if loading with no content and no phase results
+  const hasPhaseData = completedPhases && completedPhases.length > 0;
+  if (isLoading && !content && !hasPhaseData) {
     return (
       <div className="space-y-6">
         <div>
@@ -219,8 +296,8 @@ export function StepResult({ content, isStreaming, isLoading }: StepResultProps)
                   <div>
                     <h4 className="font-medium text-sm mb-2">Annuel</h4>
                     <ul className="space-y-1 text-sm text-muted-foreground">
-                      {result.costs.annualCosts && result.costs.annualCosts.map((cost: { name: string; amount: string }, idx: number) => (
-                        <li key={idx}>{cost.name}: {cost.amount}</li>
+                      {result.costs.annualCosts && result.costs.annualCosts.map((cost, idx) => (
+                        <li key={idx}>{cost.name}: {cost.amount || `${cost.amountMin}-${cost.amountMax}€`}</li>
                       ))}
                     </ul>
                   </div>
@@ -311,6 +388,86 @@ export function StepResult({ content, isStreaming, isLoading }: StepResultProps)
                     </div>
                   </div>
                 ))}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Checklist */}
+          {result.checklist?.documents && result.checklist.documents.length > 0 && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <CheckSquare className="h-4 w-4" />
+                  Documents requis
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ul className="space-y-2">
+                  {result.checklist.documents.map((doc, i) => (
+                    <li key={i} className="flex items-start gap-2 text-sm">
+                      <CheckCircle className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                      <div>
+                        <span className="font-medium">{doc.name}</span>
+                        {doc.description && (
+                          <p className="text-xs text-muted-foreground">{doc.description}</p>
+                        )}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Resources */}
+          {result.resources && result.resources.length > 0 && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Link2 className="h-4 w-4" />
+                  Ressources utiles
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ul className="space-y-2">
+                  {result.resources.map((resource, i) => (
+                    <li key={i} className="text-sm">
+                      <a
+                        href={resource.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-medium text-primary hover:underline"
+                      >
+                        {resource.name}
+                      </a>
+                      {resource.description && (
+                        <p className="text-xs text-muted-foreground">{resource.description}</p>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Warnings */}
+          {result.warnings && result.warnings.length > 0 && (
+            <Card className="border-orange-500/30 bg-orange-500/5">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-base text-orange-600">
+                  <AlertTriangle className="h-4 w-4" />
+                  Points d&apos;attention
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ul className="space-y-2">
+                  {result.warnings.map((warning, i) => (
+                    <li key={i} className="flex items-start gap-2 text-sm">
+                      <AlertTriangle className="h-4 w-4 text-orange-500 mt-0.5 shrink-0" />
+                      {warning}
+                    </li>
+                  ))}
+                </ul>
               </CardContent>
             </Card>
           )}

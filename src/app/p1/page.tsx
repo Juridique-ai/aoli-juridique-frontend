@@ -1,11 +1,9 @@
 "use client";
 
-import { useState } from "react";
-import { useP1Store } from "@/stores/p1-store";
+import { useP1Store, type P1Phase } from "@/stores/p1-store";
 import { ContractUpload } from "@/components/features/p1/contract-upload";
-import { ContractViewer } from "@/components/features/p1/contract-viewer";
-import { AnalysisPanel } from "@/components/features/p1/analysis-panel";
-import { ToolProgress } from "@/components/shared/tool-progress";
+import { ThinkingIndicator } from "@/components/features/p1/thinking-indicator";
+import { FinalResult } from "@/components/features/p1/final-result";
 import { JurisdictionSelect } from "@/components/shared/jurisdiction-select";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,27 +13,30 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowLeft, FileSearch, FileText, Sparkles, FileIcon, BarChart3 } from "lucide-react";
+import { ArrowLeft, FileSearch, FileText, Sparkles } from "lucide-react";
 import { USER_PARTIES } from "@/lib/constants";
 import { endpoints } from "@/lib/api/endpoints";
 import { P1_DEMO_CONTRACT } from "@/lib/demo-data";
-import { cn } from "@/lib/utils";
+import { cn, isDevEnvironment } from "@/lib/utils";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL;
 const API_KEY = process.env.NEXT_PUBLIC_API_KEY;
 
-export default function P1Page() {
-  const [mobileTab, setMobileTab] = useState<"document" | "analysis">("document");
+const ALL_PHASES: P1Phase[] = ["metadata", "validity", "risks", "fairness", "compliance", "summary", "recommendations"];
 
+export default function P1Page() {
   const {
     contractContent,
     documentFile,
     jurisdiction,
     userParty,
-    analysis,
     isAnalyzing,
-    currentTool,
     error,
+    phaseResults,
+    completedPhases,
+    currentPhase,
+    progressMessage,
+    currentTool,
     setDocument,
     setJurisdiction,
     setUserParty,
@@ -43,7 +44,10 @@ export default function P1Page() {
     appendAnalysis,
     setAnalyzing,
     setCurrentTool,
+    setProgressMessage,
     setError,
+    setPhaseResult,
+    setCurrentPhase,
     reset,
   } = useP1Store();
 
@@ -53,6 +57,8 @@ export default function P1Page() {
     setAnalysis("");
     setAnalyzing(true);
     setError(null);
+    setProgressMessage(null);
+    setCurrentPhase(null);
 
     try {
       const response = await fetch(`${API_BASE}${endpoints.p1.stream}`, {
@@ -95,6 +101,7 @@ export default function P1Page() {
             if (data === "[DONE]") {
               setAnalyzing(false);
               setCurrentTool(null);
+              setCurrentPhase(null);
               return;
             }
 
@@ -103,15 +110,27 @@ export default function P1Page() {
 
               switch (event.type) {
                 case "started":
-                  console.log("[P1] Agent started:", event.message);
+                  setProgressMessage(event.message || "Démarrage de l'analyse...");
                   break;
 
                 case "progress":
-                  console.log("[P1] Progress:", event.message);
+                  setProgressMessage(event.message || "Traitement en cours...");
+                  if (event.phase && event.phase !== "init" && event.phase !== "parallel_start") {
+                    setCurrentPhase(event.phase as P1Phase);
+                  }
                   break;
 
                 case "content":
-                  if (event.content) {
+                  if (event.phase && event.status === "completed" && event.content) {
+                    setPhaseResult(event.phase as P1Phase, event.content);
+                    // Move to next phase for display
+                    const currentIndex = ALL_PHASES.indexOf(event.phase);
+                    if (currentIndex < ALL_PHASES.length - 1) {
+                      setCurrentPhase(ALL_PHASES[currentIndex + 1]);
+                    } else {
+                      setCurrentPhase(null);
+                    }
+                  } else if (event.content && typeof event.content === "string") {
                     appendAnalysis(event.content);
                   }
                   break;
@@ -129,27 +148,27 @@ export default function P1Page() {
                 case "error":
                   setError(event.error || "Une erreur s'est produite.");
                   setAnalyzing(false);
+                  setCurrentPhase(null);
                   return;
 
                 case "completed":
-                  console.log("[P1] Completed event:", event);
-                  // Extract result from completed event
                   if (event.result) {
-                    let result = event.result as string;
-                    console.log("[P1] Raw result length:", result.length);
-                    // Remove markdown code blocks if present
-                    if (result.startsWith("```json")) {
-                      result = result.replace(/^```json\n?/, "").replace(/\n?```$/, "");
-                    } else if (result.startsWith("```")) {
-                      result = result.replace(/^```\n?/, "").replace(/\n?```$/, "");
+                    let result = event.result;
+                    if (typeof result === "string") {
+                      if (result.startsWith("```json")) {
+                        result = result.replace(/^```json\n?/, "").replace(/\n?```$/, "");
+                      } else if (result.startsWith("```")) {
+                        result = result.replace(/^```\n?/, "").replace(/\n?```$/, "");
+                      }
+                      setAnalysis(result);
+                    } else {
+                      setAnalysis(JSON.stringify(result, null, 2));
                     }
-                    console.log("[P1] Setting analysis, length:", result.length);
-                    setAnalysis(result);
-                  } else {
-                    console.log("[P1] No result in completed event");
                   }
                   setAnalyzing(false);
                   setCurrentTool(null);
+                  setProgressMessage(null);
+                  setCurrentPhase(null);
                   return;
               }
             } catch {
@@ -163,6 +182,7 @@ export default function P1Page() {
     } catch (err) {
       setError(err instanceof Error ? err.message : "Une erreur s'est produite.");
       setAnalyzing(false);
+      setCurrentPhase(null);
     }
   };
 
@@ -170,10 +190,12 @@ export default function P1Page() {
     setDocument(P1_DEMO_CONTRACT, null);
   };
 
+  const isComplete = completedPhases.length === ALL_PHASES.length;
+
+  // Upload screen
   if (!contractContent) {
     return (
       <div className="container py-8 max-w-3xl animate-fade-in">
-        {/* Page Header */}
         <div className="mb-8 flex items-start justify-between">
           <div className="flex items-start gap-4">
             <div className="relative">
@@ -189,150 +211,119 @@ export default function P1Page() {
               </p>
             </div>
           </div>
-          <Button
-            variant="outline"
-            onClick={handleDemo}
-            className="hover:bg-primary/10 hover:text-primary hover:border-primary/30 transition-all"
-          >
-            <Sparkles className="h-4 w-4 mr-2" />
-            Démo
-          </Button>
+          {isDevEnvironment() && (
+            <Button
+              variant="outline"
+              onClick={handleDemo}
+              className="hover:bg-primary/10 hover:text-primary hover:border-primary/30 transition-all"
+            >
+              <Sparkles className="h-4 w-4 mr-2" />
+              Démo
+            </Button>
+          )}
         </div>
         <ContractUpload onDocument={setDocument} />
       </div>
     );
   }
 
+  // Analysis screen
   return (
-    <div className="container py-8 animate-fade-in">
-      {/* Page Header */}
-      <div className="mb-8 flex items-start gap-4">
-        <div className="relative">
-          <div className="absolute inset-0 bg-primary/20 rounded-xl blur-lg" />
-          <div className="relative p-3 rounded-xl bg-primary/10 text-primary">
-            <FileText className="h-6 w-6" />
+    <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
+      <div className="container py-8 max-w-5xl animate-fade-in">
+        {/* Compact Header */}
+        <div className="mb-8 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-primary/10 text-primary">
+              <FileText className="h-5 w-5" />
+            </div>
+            <div>
+              <h1 className="text-lg font-semibold">Analyse de Contrat</h1>
+              {documentFile && (
+                <p className="text-sm text-muted-foreground">{documentFile.fileName}</p>
+              )}
+            </div>
           </div>
-        </div>
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Analyse de Contrat</h1>
-          <p className="text-muted-foreground mt-1">
-            Analysez votre contrat et identifiez les risques juridiques
-          </p>
-        </div>
-      </div>
-
-      {/* Controls */}
-      <div className={cn(
-        "flex flex-wrap items-center gap-3 mb-6 p-4 rounded-xl",
-        "bg-muted/30 border border-border/50"
-      )}>
-        <Select value={userParty} onValueChange={setUserParty}>
-          <SelectTrigger className="w-[180px] bg-background/50">
-            <SelectValue placeholder="Votre rôle" />
-          </SelectTrigger>
-          <SelectContent>
-            {USER_PARTIES.map((opt) => (
-              <SelectItem key={opt.value} value={opt.value}>
-                {opt.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <JurisdictionSelect value={jurisdiction} onChange={setJurisdiction} />
-
-        <div className="flex-1" />
-
-        <Button
-          onClick={handleAnalyze}
-          disabled={isAnalyzing}
-          className="shadow-lg shadow-primary/20"
-        >
-          <FileSearch className="h-4 w-4 mr-2" />
-          {isAnalyzing ? "Analyse en cours..." : "Analyser le contrat"}
-        </Button>
-
-        <Button
-          variant="outline"
-          onClick={reset}
-          className="hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30 transition-all"
-        >
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Nouveau
-        </Button>
-      </div>
-
-      {/* Tool Progress */}
-      {currentTool && (
-        <div className="mb-4 animate-fade-in">
-          <ToolProgress tool={currentTool} />
-        </div>
-      )}
-
-      {/* Error */}
-      {error && (
-        <div className="mb-4 p-4 bg-destructive/10 text-destructive rounded-xl border border-destructive/20 animate-fade-in">
-          {error}
-        </div>
-      )}
-
-      {/* Mobile Tab Navigation */}
-      <div className="lg:hidden mb-4">
-        <div className="flex gap-2 p-1 bg-muted/50 rounded-xl">
-          <button
-            type="button"
-            onClick={() => setMobileTab("document")}
-            className={cn(
-              "flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all",
-              mobileTab === "document"
-                ? "bg-background text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground"
-            )}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={reset}
+            className="text-muted-foreground hover:text-foreground"
           >
-            <FileIcon className="h-4 w-4" />
-            Document
-          </button>
-          <button
-            type="button"
-            onClick={() => setMobileTab("analysis")}
-            className={cn(
-              "flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all",
-              mobileTab === "analysis"
-                ? "bg-background text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground",
-              analysis && "relative"
-            )}
-          >
-            <BarChart3 className="h-4 w-4" />
-            Analyse
-            {/* Notification dot when analysis is ready */}
-            {analysis && mobileTab === "document" && (
-              <span className="absolute top-1 right-1 w-2 h-2 bg-primary rounded-full animate-pulse" />
-            )}
-          </button>
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Nouveau
+          </Button>
         </div>
-      </div>
 
-      {/* Desktop: Split View / Mobile: Tab Content */}
-      <div className="hidden lg:grid lg:grid-cols-2 gap-6">
-        <ContractViewer content={contractContent} documentFile={documentFile} />
-        <AnalysisPanel
-          content={analysis}
-          isStreaming={isAnalyzing}
-          isLoading={isAnalyzing}
-        />
-      </div>
+        {/* Controls - only show before analysis starts */}
+        {!isAnalyzing && completedPhases.length === 0 && (
+          <div className={cn(
+            "flex flex-wrap items-center justify-center gap-3 mb-8 p-6 rounded-2xl",
+            "bg-card border border-border shadow-sm"
+          )}>
+            <Select value={userParty} onValueChange={setUserParty}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Votre rôle" />
+              </SelectTrigger>
+              <SelectContent>
+                {USER_PARTIES.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
 
-      {/* Mobile: Single panel based on active tab */}
-      <div className="lg:hidden">
-        {mobileTab === "document" ? (
-          <ContractViewer content={contractContent} documentFile={documentFile} />
-        ) : (
-          <AnalysisPanel
-            content={analysis}
-            isStreaming={isAnalyzing}
-            isLoading={isAnalyzing}
+            <JurisdictionSelect value={jurisdiction} onChange={setJurisdiction} />
+
+            <Button
+              onClick={handleAnalyze}
+              size="lg"
+              className="shadow-lg shadow-primary/20 ml-4"
+            >
+              <FileSearch className="h-4 w-4 mr-2" />
+              Analyser le contrat
+            </Button>
+          </div>
+        )}
+
+        {/* Error */}
+        {error && (
+          <div className="mb-8 p-4 bg-destructive/10 text-destructive rounded-xl border border-destructive/20 text-center">
+            {error}
+          </div>
+        )}
+
+        {/* Thinking Indicator - shows during analysis */}
+        {isAnalyzing && !isComplete && (
+          <ThinkingIndicator
+            currentPhase={currentPhase}
+            completedCount={completedPhases.length}
+            totalCount={ALL_PHASES.length}
+            progressMessage={progressMessage}
+            currentTool={currentTool}
           />
+        )}
+
+        {/* Progressive Results - show as phases complete */}
+        {completedPhases.length > 0 && (
+          <div className={isComplete ? "" : "mt-8"}>
+            <FinalResult results={phaseResults} isStreaming={!isComplete} />
+          </div>
+        )}
+
+        {/* New Analysis button when complete */}
+        {isComplete && (
+          <div className="mt-8 text-center">
+            <Button
+              variant="outline"
+              onClick={reset}
+              className="hover:bg-primary/10 hover:text-primary hover:border-primary/30"
+            >
+              <FileSearch className="h-4 w-4 mr-2" />
+              Analyser un autre contrat
+            </Button>
+          </div>
         )}
       </div>
     </div>

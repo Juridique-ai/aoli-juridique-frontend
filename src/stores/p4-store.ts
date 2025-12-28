@@ -8,6 +8,17 @@ interface ConversationMessage {
   content: string;
 }
 
+// Phase results for progressive display
+export interface P4PhaseResults {
+  facts: Record<string, unknown> | null;
+  legal: Record<string, unknown> | null;
+  tone: Record<string, unknown> | null;
+  draft: Record<string, unknown> | null;
+  delivery: Record<string, unknown> | null;
+}
+
+export type P4Phase = keyof P4PhaseResults;
+
 interface P4State {
   sender: P4Party;
   recipient: P4Party;
@@ -19,7 +30,12 @@ interface P4State {
   result: string;
   isLoading: boolean;
   currentTool: string | null;
+  progressMessage: string | null;
   error: string | null;
+  // Phase-based results for progressive display
+  phaseResults: P4PhaseResults;
+  completedPhases: P4Phase[];
+  currentPhase: P4Phase | null;
   // Conversation for clarifications
   conversation: ConversationMessage[];
   clarifyingQuestions: string[];
@@ -34,7 +50,11 @@ interface P4State {
   appendResult: (content: string) => void;
   setLoading: (loading: boolean) => void;
   setCurrentTool: (tool: string | null) => void;
+  setProgressMessage: (message: string | null) => void;
   setError: (error: string | null) => void;
+  // Phase management
+  setPhaseResult: (phase: P4Phase, result: Record<string, unknown>) => void;
+  setCurrentPhase: (phase: P4Phase | null) => void;
   addConversation: (message: ConversationMessage) => void;
   setClarifyingQuestions: (questions: string[]) => void;
   clearClarifyingQuestions: () => void;
@@ -42,6 +62,14 @@ interface P4State {
 }
 
 const emptyParty: P4Party = { name: "", address: "", role: "" };
+
+const initialPhaseResults: P4PhaseResults = {
+  facts: null,
+  legal: null,
+  tone: null,
+  draft: null,
+  delivery: null,
+};
 
 export const useP4Store = create<P4State>((set) => ({
   sender: { ...emptyParty },
@@ -54,7 +82,11 @@ export const useP4Store = create<P4State>((set) => ({
   result: "",
   isLoading: false,
   currentTool: null,
+  progressMessage: null,
   error: null,
+  phaseResults: initialPhaseResults,
+  completedPhases: [],
+  currentPhase: null,
   conversation: [],
   clarifyingQuestions: [],
 
@@ -69,7 +101,15 @@ export const useP4Store = create<P4State>((set) => ({
   appendResult: (content) => set((s) => ({ result: s.result + content })),
   setLoading: (isLoading) => set({ isLoading }),
   setCurrentTool: (currentTool) => set({ currentTool }),
+  setProgressMessage: (progressMessage) => set({ progressMessage }),
   setError: (error) => set({ error }),
+  setPhaseResult: (phase, result) => set((s) => ({
+    phaseResults: { ...s.phaseResults, [phase]: result },
+    completedPhases: s.completedPhases.includes(phase)
+      ? s.completedPhases
+      : [...s.completedPhases, phase],
+  })),
+  setCurrentPhase: (currentPhase) => set({ currentPhase }),
   addConversation: (message) => set((s) => ({ conversation: [...s.conversation, message] })),
   setClarifyingQuestions: (questions) => set({ clarifyingQuestions: questions }),
   clearClarifyingQuestions: () => set({ clarifyingQuestions: [] }),
@@ -84,7 +124,11 @@ export const useP4Store = create<P4State>((set) => ({
       result: "",
       isLoading: false,
       currentTool: null,
+      progressMessage: null,
       error: null,
+      phaseResults: initialPhaseResults,
+      completedPhases: [],
+      currentPhase: null,
       conversation: [],
       clarifyingQuestions: [],
     }),
