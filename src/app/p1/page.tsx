@@ -4,20 +4,11 @@ import { useP1Store, type P1Phase } from "@/stores/p1-store";
 import { ContractUpload } from "@/components/features/p1/contract-upload";
 import { ThinkingIndicator } from "@/components/features/p1/thinking-indicator";
 import { FinalResult } from "@/components/features/p1/final-result";
-import { JurisdictionSelect } from "@/components/shared/jurisdiction-select";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { ArrowLeft, FileSearch, FileText, Sparkles } from "lucide-react";
-import { USER_PARTIES } from "@/lib/constants";
 import { endpoints } from "@/lib/api/endpoints";
 import { P1_DEMO_CONTRACT } from "@/lib/demo-data";
-import { cn, isDevEnvironment } from "@/lib/utils";
+import { isDevEnvironment } from "@/lib/utils";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL;
 const API_KEY = process.env.NEXT_PUBLIC_API_KEY;
@@ -38,8 +29,6 @@ export default function P1Page() {
     progressMessage,
     currentTool,
     setDocument,
-    setJurisdiction,
-    setUserParty,
     setAnalysis,
     appendAnalysis,
     setAnalyzing,
@@ -188,6 +177,19 @@ export default function P1Page() {
 
   const handleDemo = () => {
     setDocument(P1_DEMO_CONTRACT, null);
+    // Auto-start analysis after demo load
+    setTimeout(() => {
+      handleAnalyze();
+    }, 100);
+  };
+
+  // Auto-start analysis when document is uploaded
+  const handleDocumentUpload = (content: string, file: { fileName: string; fileType: string; uri: string } | null) => {
+    setDocument(content, file);
+    // Auto-start analysis after upload
+    setTimeout(() => {
+      handleAnalyze();
+    }, 100);
   };
 
   const isComplete = completedPhases.length === ALL_PHASES.length;
@@ -222,7 +224,7 @@ export default function P1Page() {
             </Button>
           )}
         </div>
-        <ContractUpload onDocument={setDocument} />
+        <ContractUpload onDocument={handleDocumentUpload} />
       </div>
     );
   }
@@ -254,38 +256,6 @@ export default function P1Page() {
             Nouveau
           </Button>
         </div>
-
-        {/* Controls - only show before analysis starts */}
-        {!isAnalyzing && completedPhases.length === 0 && (
-          <div className={cn(
-            "flex flex-wrap items-center justify-center gap-3 mb-8 p-6 rounded-2xl",
-            "bg-card border border-border shadow-sm"
-          )}>
-            <Select value={userParty} onValueChange={setUserParty}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Votre rôle" />
-              </SelectTrigger>
-              <SelectContent>
-                {USER_PARTIES.map((opt) => (
-                  <SelectItem key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <JurisdictionSelect value={jurisdiction} onChange={setJurisdiction} />
-
-            <Button
-              onClick={handleAnalyze}
-              size="lg"
-              className="shadow-lg shadow-primary/20 ml-4"
-            >
-              <FileSearch className="h-4 w-4 mr-2" />
-              Analyser le contrat
-            </Button>
-          </div>
-        )}
 
         {/* Error */}
         {error && (

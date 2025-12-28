@@ -191,7 +191,7 @@ export function FinalResult({ results, isStreaming = false }: FinalResultProps) 
 
           {/* Metadata */}
           {metadata && (
-            <Section title="Informations du contrat" icon={FileText}>
+            <Section title="Informations du contrat" icon={FileText} defaultOpen={true}>
               <div className="grid grid-cols-2 gap-4">
                 {!!metadata.contractType && (
                   <div>
@@ -243,6 +243,7 @@ export function FinalResult({ results, isStreaming = false }: FinalResultProps) 
               icon={Shield}
               badge={validity.isValid ? "Valide" : "Problèmes détectés"}
               badgeVariant={validity.isValid ? "success" : "error"}
+              defaultOpen={true}
             >
               {validity.isValid ? (
                 <p className="text-primary">Le contrat respecte les conditions de validité.</p>
@@ -268,6 +269,7 @@ export function FinalResult({ results, isStreaming = false }: FinalResultProps) 
               icon={AlertTriangle}
               badge={`${risks.length} risque${risks.length > 1 ? 's' : ''}`}
               badgeVariant={risks.some(r => r.severity === 'critical' || r.severity === 'high') ? "error" : "warning"}
+              defaultOpen={true}
             >
               <div className="space-y-3">
                 {risks.map((risk, i) => (
@@ -311,6 +313,7 @@ export function FinalResult({ results, isStreaming = false }: FinalResultProps) 
               title="Équité contractuelle"
               icon={Scale}
               badge={fairness.score ? `Score: ${fairness.score}/100` : undefined}
+              defaultOpen={true}
             >
               {!!fairness.overallAssessment && (
                 <p className="text-muted-foreground mb-3">{String(fairness.overallAssessment)}</p>
@@ -330,7 +333,7 @@ export function FinalResult({ results, isStreaming = false }: FinalResultProps) 
 
           {/* Compliance */}
           {compliance && (
-            <Section title="Conformité réglementaire" icon={CheckCircle}>
+            <Section title="Conformité réglementaire" icon={CheckCircle} defaultOpen={true}>
               <div className="space-y-3">
                 {!!compliance.gdpr && (
                   <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
