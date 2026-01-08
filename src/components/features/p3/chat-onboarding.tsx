@@ -45,7 +45,7 @@ const CATEGORIES: Category[] = [
       "Quels recours contre un locataire qui ne paie pas ?",
       "Comment contester les charges de copropriété ?",
     ],
-    color: "from-emerald-500/20 to-teal-500/20",
+    color: "from-sky-500/20 to-blue-500/20",
   },
   {
     id: "business",

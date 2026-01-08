@@ -327,6 +327,7 @@ export function ChatContainer() {
     isLoading,
     jurisdiction,
     currentTool,
+    progressMessage,
     addMessage,
     updateMessage,
     setClarification,
@@ -334,6 +335,7 @@ export function ChatContainer() {
     setLoading,
     setJurisdiction,
     setCurrentTool,
+    setProgressMessage,
     clearChat,
   } = useP3Store();
   const { profile } = useUserProfileStore();
@@ -440,6 +442,16 @@ export function ChatContainer() {
               const event = JSON.parse(data);
 
               switch (event.type) {
+                case "started":
+                  console.log("[P3] Agent started:", event.message);
+                  setProgressMessage(event.message || "Démarrage de l'analyse...");
+                  break;
+
+                case "progress":
+                  console.log("[P3] Progress:", event.message);
+                  setProgressMessage(event.message || "Traitement en cours...");
+                  break;
+
                 case "content":
                   if (event.content) {
                     fullContent += event.content;
@@ -543,6 +555,7 @@ export function ChatContainer() {
                   }
                   setStreaming(assistantId, false);
                   setCurrentTool(null);
+                  setProgressMessage(null);
                   setLoading(false);
                   return;
               }
@@ -668,9 +681,9 @@ export function ChatContainer() {
             {showTypingIndicator && <TypingIndicator className="animate-fade-in" />}
           </>
         )}
-        {currentTool && (
+        {(currentTool || progressMessage) && (
           <div className="animate-fade-in">
-            <ToolProgress tool={currentTool} />
+            <ToolProgress tool={currentTool} message={progressMessage} />
           </div>
         )}
         <div ref={messagesEndRef} />

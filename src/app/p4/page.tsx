@@ -1,11 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useP4Store } from "@/stores/p4-store";
+import { useP4Store, type P4Phase } from "@/stores/p4-store";
 import { useUserProfileStore, formatFullAddress } from "@/stores/user-profile-store";
-import { TemplatesGallery } from "@/components/features/p4/templates-gallery";
-import { CorrespondenceForm } from "@/components/features/p4/correspondence-form";
-import { LetterPreview } from "@/components/features/p4/letter-preview";
+import { TemplatesGallery, CorrespondenceForm, LetterPreview, ProgressiveResult } from "@/components/features/p4";
 import { ToolProgress } from "@/components/shared/tool-progress";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,7 +24,7 @@ import {
 } from "lucide-react";
 import { endpoints } from "@/lib/api/endpoints";
 import { P4_DEMO_DATA } from "@/lib/demo-data";
-import { cn } from "@/lib/utils";
+import { cn, isDevEnvironment } from "@/lib/utils";
 import { toast } from "sonner";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL;
@@ -69,7 +67,10 @@ export default function P4Page() {
     result,
     isLoading,
     currentTool,
+    progressMessage,
     error,
+    phaseResults,
+    completedPhases,
     conversation,
     clarifyingQuestions,
     setSender,
@@ -82,7 +83,10 @@ export default function P4Page() {
     setResult,
     setLoading,
     setCurrentTool,
+    setProgressMessage,
     setError,
+    setPhaseResult,
+    setCurrentPhase,
     addConversation,
     setClarifyingQuestions,
     clearClarifyingQuestions,
@@ -164,6 +168,7 @@ export default function P4Page() {
     }
     setLoading(true);
     setError(null);
+    setCurrentPhase(null);
     setMobileTab("preview");
 
     // Build request with conversation context
@@ -223,6 +228,7 @@ export default function P4Page() {
             if (data === "[DONE]") {
               setLoading(false);
               setCurrentTool(null);
+              setCurrentPhase(null);
               return;
             }
 
@@ -230,8 +236,28 @@ export default function P4Page() {
               const event = JSON.parse(data);
 
               switch (event.type) {
+                case "started":
+                  console.log("[P4] Agent started:", event.message);
+                  setProgressMessage(event.message || "Démarrage de la génération...");
+                  break;
+
+                case "progress":
+                  console.log("[P4] Progress:", event.phase, event.message);
+                  setProgressMessage(event.message || "Traitement en cours...");
+                  // Set current phase from progress event
+                  if (event.phase && event.phase !== "init") {
+                    setCurrentPhase(event.phase as P4Phase);
+                  }
+                  break;
+
                 case "content":
-                  if (event.content) {
+                  // Handle phase content from parallel workflow
+                  if (event.phase && event.status === "completed" && event.content) {
+                    console.log("[P4] Phase completed:", event.phase, event.content);
+                    setPhaseResult(event.phase as P4Phase, event.content);
+                    setCurrentPhase(null);
+                  } else if (event.content && typeof event.content === "string") {
+                    // Legacy streaming content
                     fullContent += event.content;
                   }
                   break;
@@ -249,9 +275,11 @@ export default function P4Page() {
                 case "error":
                   setError(event.error || "Une erreur s'est produite.");
                   setLoading(false);
+                  setCurrentPhase(null);
                   return;
 
                 case "completed":
+                  console.log("[P4] Completed event:", event);
                   const completedResult = event.result || fullContent;
                   const parsed = parseResult(typeof completedResult === "string" ? completedResult : JSON.stringify(completedResult));
 
@@ -267,11 +295,16 @@ export default function P4Page() {
                     setResult(JSON.stringify(parsed.letterDraft, null, 2));
                     clearClarifyingQuestions();
                   } else {
-                    // Raw result
-                    setResult(typeof completedResult === "string" ? completedResult : JSON.stringify(completedResult, null, 2));
+                    // Raw result (new parallel workflow format)
+                    const resultData = typeof completedResult === "string"
+                      ? completedResult
+                      : JSON.stringify(completedResult, null, 2);
+                    setResult(resultData);
                   }
                   setLoading(false);
                   setCurrentTool(null);
+                  setCurrentPhase(null);
+                  setProgressMessage(null);
                   return;
               }
             } catch {
@@ -298,9 +331,11 @@ export default function P4Page() {
       }
 
       setLoading(false);
+      setCurrentPhase(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Une erreur s'est produite.");
       setLoading(false);
+      setCurrentPhase(null);
     }
   };
 
@@ -341,14 +376,16 @@ export default function P4Page() {
               </p>
             </div>
           </div>
-          <Button
-            variant="outline"
-            onClick={handleDemo}
-            className="hover:bg-primary/10 hover:text-primary hover:border-primary/30 transition-all"
-          >
-            <Sparkles className="h-4 w-4 mr-2" />
-            Démo
-          </Button>
+          {isDevEnvironment() && (
+            <Button
+              variant="outline"
+              onClick={handleDemo}
+              className="hover:bg-primary/10 hover:text-primary hover:border-primary/30 transition-all"
+            >
+              <Sparkles className="h-4 w-4 mr-2" />
+              Démo
+            </Button>
+          )}
         </div>
 
         <TemplatesGallery onSelectTemplate={handleTemplateSelect} />
@@ -440,10 +477,10 @@ export default function P4Page() {
         )}
       </div>
 
-      {/* Tool Progress */}
-      {currentTool && (
+      {/* Tool Progress - Show only when not displaying progressive results */}
+      {(currentTool || progressMessage) && completedPhases.length === 0 && (
         <div className="mb-4 animate-fade-in">
-          <ToolProgress tool={currentTool} />
+          <ToolProgress tool={currentTool} message={progressMessage} />
         </div>
       )}
 
@@ -572,8 +609,12 @@ export default function P4Page() {
             onJurisdictionChange={setJurisdiction}
           />
         </div>
-        <div className="lg:sticky lg:top-6">
-          <LetterPreview content={result} isStreaming={isLoading} isLoading={isLoading && !clarifyingQuestions.length} />
+        <div className="lg:sticky lg:top-6 lg:max-h-[calc(100vh-16rem)] lg:overflow-y-auto">
+          {completedPhases.length > 0 || isLoading ? (
+            <ProgressiveResult results={phaseResults} isStreaming={isLoading} />
+          ) : (
+            <LetterPreview content={result} isStreaming={isLoading} isLoading={isLoading && !clarifyingQuestions.length} />
+          )}
         </div>
       </div>
 
@@ -596,6 +637,8 @@ export default function P4Page() {
             onToneChange={setTone}
             onJurisdictionChange={setJurisdiction}
           />
+        ) : completedPhases.length > 0 || isLoading ? (
+          <ProgressiveResult results={phaseResults} isStreaming={isLoading} />
         ) : (
           <LetterPreview content={result} isStreaming={isLoading} isLoading={isLoading && !clarifyingQuestions.length} />
         )}

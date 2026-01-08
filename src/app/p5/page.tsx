@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useP5Store } from "@/stores/p5-store";
+import { useP5Store, type P5Phase } from "@/stores/p5-store";
 import {
   Step1DocumentType,
   Step2CaseInfo,
@@ -10,6 +10,7 @@ import {
   Step5Claims,
 } from "@/components/features/p5/wizard-steps";
 import { DocumentPreview } from "@/components/features/p5/document-preview";
+import { ProgressiveResult } from "@/components/features/p5/progressive-result";
 import { ToolProgress } from "@/components/shared/tool-progress";
 import { Button } from "@/components/ui/button";
 import {
@@ -28,7 +29,7 @@ import {
 } from "lucide-react";
 import { endpoints } from "@/lib/api/endpoints";
 import { P5_DEMO_DATA } from "@/lib/demo-data";
-import { cn } from "@/lib/utils";
+import { cn, isDevEnvironment } from "@/lib/utils";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL;
 const API_KEY = process.env.NEXT_PUBLIC_API_KEY;
@@ -59,7 +60,11 @@ export default function P5Page() {
     structuredResult,
     isLoading,
     currentTool,
+    progressMessage,
     error,
+    phaseResults,
+    completedPhases,
+    currentPhase,
     setDocumentType,
     setJurisdiction,
     setCourt,
@@ -75,7 +80,10 @@ export default function P5Page() {
     setStructuredResult,
     setLoading,
     setCurrentTool,
+    setProgressMessage,
     setError,
+    setPhaseResult,
+    setCurrentPhase,
     reset,
   } = useP5Store();
 
@@ -198,8 +206,24 @@ ${legalBasis}
             const event = JSON.parse(data);
 
             switch (event.type) {
+              case "started":
+                console.log("[P5] Agent started:", event.message);
+                setProgressMessage(event.message || "Démarrage de la génération...");
+                break;
+
+              case "progress":
+                console.log("[P5] Progress:", event.message);
+                setProgressMessage(event.message || "Traitement en cours...");
+                break;
+
               case "content":
-                if (event.content) {
+                // Handle phase content from parallel workflow
+                if (event.phase && event.status === "completed" && event.content) {
+                  console.log("[P5] Phase completed:", event.phase, event.content);
+                  setPhaseResult(event.phase as P5Phase, event.content);
+                  setCurrentPhase(null);
+                } else if (event.content && typeof event.content === "string") {
+                  // Legacy streaming content
                   useP5Store.setState((state) => ({ result: state.result + event.content }));
                 }
                 break;
@@ -210,6 +234,20 @@ ${legalBasis}
 
               case "tool_result":
                 setCurrentTool(null);
+                break;
+
+              case "phase_start":
+                if (event.phase) {
+                  setCurrentPhase(event.phase as P5Phase);
+                  setProgressMessage(event.message || `Phase: ${event.phase}`);
+                }
+                break;
+
+              case "phase_result":
+                if (event.phase && event.result) {
+                  setPhaseResult(event.phase as P5Phase, event.result);
+                  setCurrentPhase(null);
+                }
                 break;
 
               case "error":
@@ -227,6 +265,7 @@ ${legalBasis}
                       setResult(event.result);
                       setLoading(false);
                       setCurrentTool(null);
+                      setProgressMessage(null);
                       return;
                     }
                   }
@@ -237,6 +276,7 @@ ${legalBasis}
                 }
                 setLoading(false);
                 setCurrentTool(null);
+                setProgressMessage(null);
                 return;
             }
           } catch {
@@ -329,15 +369,17 @@ ${legalBasis}
           </div>
         </div>
         <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleDemo}
-            className="hover:bg-primary/10 hover:text-primary hover:border-primary/30 transition-all"
-          >
-            <Sparkles className="h-4 w-4 mr-2" />
-            Démo
-          </Button>
+          {isDevEnvironment() && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleDemo}
+              className="hover:bg-primary/10 hover:text-primary hover:border-primary/30 transition-all"
+            >
+              <Sparkles className="h-4 w-4 mr-2" />
+              Démo
+            </Button>
+          )}
           <Button
             variant="outline"
             size="sm"
@@ -408,9 +450,9 @@ ${legalBasis}
       </div>
 
       {/* Tool Progress */}
-      {currentTool && (
+      {(currentTool || progressMessage) && (
         <div className="mb-4 animate-fade-in">
-          <ToolProgress tool={currentTool} />
+          <ToolProgress tool={currentTool} message={progressMessage} />
         </div>
       )}
 
@@ -505,12 +547,19 @@ ${legalBasis}
           "lg:block lg:sticky lg:top-6",
           mobileView === "preview" ? "block" : "hidden"
         )}>
-          <DocumentPreview
-            content={result}
-            structuredResult={structuredResult}
-            isStreaming={isLoading}
-            isLoading={isLoading}
-          />
+          {completedPhases.length > 0 || currentPhase ? (
+            <ProgressiveResult
+              results={phaseResults}
+              isStreaming={isLoading}
+            />
+          ) : (
+            <DocumentPreview
+              content={result}
+              structuredResult={structuredResult}
+              isStreaming={isLoading}
+              isLoading={isLoading}
+            />
+          )}
         </div>
       </div>
     </div>

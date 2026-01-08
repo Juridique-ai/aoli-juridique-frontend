@@ -1,13 +1,14 @@
 "use client";
 
-import { useP2Store } from "@/stores/p2-store";
+import { useP2Store, type P2Phase } from "@/stores/p2-store";
 import {
   WizardProgress,
   StepCountry,
   StepActivity,
   StepDetails,
   StepPreferences,
-  StepResult,
+  P2PhaseResults,
+  ProgressiveResult,
 } from "@/components/features/p2";
 import { WizardSummary } from "@/components/features/p2/wizard-summary";
 import { ToolProgress } from "@/components/shared/tool-progress";
@@ -15,7 +16,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, ArrowRight, RotateCcw, Sparkles, Building2, ClipboardList } from "lucide-react";
 import { endpoints } from "@/lib/api/endpoints";
 import { P2_DEMO_DATA } from "@/lib/demo-data";
-import { cn } from "@/lib/utils";
+import { cn, isDevEnvironment } from "@/lib/utils";
 import { useState } from "react";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL;
@@ -33,7 +34,11 @@ export default function P2Page() {
     result,
     isLoading,
     currentTool,
+    progressMessage,
     error,
+    phaseResults,
+    completedPhases,
+    currentPhase,
     nextStep,
     prevStep,
     setCountry,
@@ -42,7 +47,10 @@ export default function P2Page() {
     appendResult,
     setLoading,
     setCurrentTool,
+    setProgressMessage,
     setError,
+    setPhaseResult,
+    setCurrentPhase,
     reset,
     setStep,
   } = useP2Store();
@@ -72,6 +80,7 @@ export default function P2Page() {
     setResult("");
     setLoading(true);
     setError(null);
+    setCurrentPhase(null);
     nextStep();
 
     try {
@@ -114,6 +123,7 @@ export default function P2Page() {
             if (data === "[DONE]") {
               setLoading(false);
               setCurrentTool(null);
+              setCurrentPhase(null);
               return;
             }
 
@@ -123,14 +133,26 @@ export default function P2Page() {
               switch (event.type) {
                 case "started":
                   console.log("[P2] Agent started:", event.message);
+                  setProgressMessage(event.message || "Démarrage de l'analyse...");
                   break;
 
                 case "progress":
-                  console.log("[P2] Progress:", event.message);
+                  console.log("[P2] Progress:", event.phase, event.message);
+                  setProgressMessage(event.message || "Traitement en cours...");
+                  // Set current phase from progress event
+                  if (event.phase && event.phase !== "init") {
+                    setCurrentPhase(event.phase as P2Phase);
+                  }
                   break;
 
                 case "content":
-                  if (event.content) {
+                  // Handle phase content from parallel workflow
+                  if (event.phase && event.status === "completed" && event.content) {
+                    console.log("[P2] Phase completed:", event.phase, event.content);
+                    setPhaseResult(event.phase as P2Phase, event.content);
+                    setCurrentPhase(null); // Clear current phase when complete
+                  } else if (event.content && typeof event.content === "string") {
+                    // Legacy streaming content
                     appendResult(event.content);
                   }
                   break;
@@ -148,24 +170,23 @@ export default function P2Page() {
                 case "error":
                   setError(event.error || "Une erreur s'est produite.");
                   setLoading(false);
+                  setCurrentPhase(null);
                   return;
 
                 case "completed":
                   console.log("[P2] Completed event:", event);
                   // Extract result from completed event
                   if (event.result) {
-                    let result = event.result as string;
-                    // Remove markdown code blocks if present
-                    if (result.startsWith("```json")) {
-                      result = result.replace(/^```json\n?/, "").replace(/\n?```$/, "");
-                    } else if (result.startsWith("```")) {
-                      result = result.replace(/^```\n?/, "").replace(/\n?```$/, "");
-                    }
-                    console.log("[P2] Setting result, length:", result.length);
-                    setResult(result);
+                    const resultData = typeof event.result === "string"
+                      ? event.result
+                      : JSON.stringify(event.result);
+                    console.log("[P2] Setting final result");
+                    setResult(resultData);
                   }
                   setLoading(false);
                   setCurrentTool(null);
+                  setCurrentPhase(null);
+                  setProgressMessage(null);
                   return;
               }
             } catch {
@@ -179,6 +200,7 @@ export default function P2Page() {
     } catch (err) {
       setError(err instanceof Error ? err.message : "Une erreur s'est produite.");
       setLoading(false);
+      setCurrentPhase(null);
     }
   };
 
@@ -214,10 +236,9 @@ export default function P2Page() {
         );
       case 5:
         return (
-          <StepResult
-            content={result}
+          <ProgressiveResult
+            results={phaseResults}
             isStreaming={isLoading}
-            isLoading={isLoading}
           />
         );
       default:
@@ -244,7 +265,7 @@ export default function P2Page() {
           </div>
         </div>
         <div className="flex gap-2">
-          {step === 1 && (
+          {step === 1 && isDevEnvironment() && (
             <Button
               variant="outline"
               size="sm"
@@ -285,10 +306,10 @@ export default function P2Page() {
         <div className="flex-1 space-y-6">
           <WizardProgress currentStep={step} totalSteps={5} steps={STEPS} />
 
-          {/* Tool Progress */}
-          {currentTool && (
+          {/* Tool Progress - Show only when not on results step */}
+          {step !== 5 && (currentTool || progressMessage) && (
             <div className="animate-fade-in">
-              <ToolProgress tool={currentTool} />
+              <ToolProgress tool={currentTool} message={progressMessage} />
             </div>
           )}
 

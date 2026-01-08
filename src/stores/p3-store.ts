@@ -6,6 +6,7 @@ interface P3State {
   isLoading: boolean;
   jurisdiction: string;
   currentTool: string | null;
+  progressMessage: string | null;
   addMessage: (message: Omit<Message, "id" | "timestamp">) => string;
   updateMessage: (id: string, content: string) => void;
   setClarification: (id: string, clarification: Clarification | undefined) => void;
@@ -13,6 +14,7 @@ interface P3State {
   setLoading: (loading: boolean) => void;
   setJurisdiction: (jurisdiction: string) => void;
   setCurrentTool: (tool: string | null) => void;
+  setProgressMessage: (message: string | null) => void;
   clearChat: () => void;
 }
 
@@ -21,6 +23,7 @@ export const useP3Store = create<P3State>((set, get) => ({
   isLoading: false,
   jurisdiction: "FR",
   currentTool: null,
+  progressMessage: null,
 
   addMessage: (message) => {
     const id = crypto.randomUUID();
@@ -57,5 +60,6 @@ export const useP3Store = create<P3State>((set, get) => ({
   setLoading: (isLoading) => set({ isLoading }),
   setJurisdiction: (jurisdiction) => set({ jurisdiction }),
   setCurrentTool: (currentTool) => set({ currentTool }),
-  clearChat: () => set({ messages: [], currentTool: null }),
+  setProgressMessage: (progressMessage) => set({ progressMessage }),
+  clearChat: () => set({ messages: [], currentTool: null, progressMessage: null }),
 }));

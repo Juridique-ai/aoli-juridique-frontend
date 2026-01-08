@@ -149,7 +149,7 @@ export function AnalysisPanel({ content, isStreaming, isLoading }: AnalysisPanel
                     {analysis.executiveSummary.keyFindings.map((finding, i) => (
                       <li key={i} className="text-sm flex items-start gap-2">
                         <span className="text-primary">•</span>
-                        {finding}
+                        {typeof finding === 'string' ? finding : JSON.stringify(finding)}
                       </li>
                     ))}
                   </ul>
@@ -182,7 +182,7 @@ export function AnalysisPanel({ content, isStreaming, isLoading }: AnalysisPanel
                     <p className="text-sm font-medium text-muted-foreground">Mentions manquantes:</p>
                     <ul className="mt-1 space-y-1">
                       {analysis.validity.missingMentions.map((mention, i) => (
-                        <li key={i} className="text-sm text-red-600">• {mention}</li>
+                        <li key={i} className="text-sm text-red-600">• {typeof mention === 'string' ? mention : JSON.stringify(mention)}</li>
                       ))}
                     </ul>
                   </div>
@@ -230,7 +230,7 @@ export function AnalysisPanel({ content, isStreaming, isLoading }: AnalysisPanel
                   {analysis.executiveSummary.priorityActions.map((action, i) => (
                     <li key={i} className="text-sm flex items-start gap-2">
                       <span className="text-primary font-bold">{i + 1}.</span>
-                      {action}
+                      {typeof action === 'string' ? action : (action as { action?: string; description?: string })?.action || (action as { action?: string; description?: string })?.description || JSON.stringify(action)}
                     </li>
                   ))}
                 </ul>

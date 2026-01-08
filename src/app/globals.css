@@ -37,6 +37,10 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -47,117 +51,147 @@
 }
 
 /* =================================================================
-   EMERALD/TEAL THEME - Light Mode
+   PROFESSIONAL SLATE THEME - Light Mode
+
+   Design Philosophy:
+   - Slate blue primary for trust & professionalism (legal tech)
+   - Muted, desaturated colors for reduced eye strain
+   - Cool gray neutrals with subtle blue undertone
+   - Amber accent for authority and important actions
+   - Green reserved only for success states
+   - WCAG AA compliant contrast ratios
    ================================================================= */
 :root {
-  --radius: 0.75rem;
+  --radius: 0.625rem;
 
-  /* Backgrounds */
-  --background: oklch(0.985 0.002 180);
-  --foreground: oklch(0.145 0.03 180);
+  /* Backgrounds - Pure neutrals with subtle cool undertone */
+  --background: oklch(0.985 0.002 250);
+  --foreground: oklch(0.145 0.015 250);
 
   /* Cards & Surfaces */
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0.03 180);
+  --card-foreground: oklch(0.145 0.015 250);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0.03 180);
+  --popover-foreground: oklch(0.145 0.015 250);
 
-  /* Primary - Teal */
-  --primary: oklch(0.55 0.15 175);
-  --primary-foreground: oklch(0.985 0.002 180);
+  /* Primary - Slate Blue (Trust, Professionalism) */
+  --primary: oklch(0.45 0.085 250);
+  --primary-foreground: oklch(0.985 0.002 250);
 
-  /* Secondary */
-  --secondary: oklch(0.965 0.015 175);
-  --secondary-foreground: oklch(0.25 0.05 175);
+  /* Secondary - Neutral cool gray */
+  --secondary: oklch(0.965 0.005 250);
+  --secondary-foreground: oklch(0.25 0.02 250);
 
-  /* Muted */
-  --muted: oklch(0.955 0.01 180);
-  --muted-foreground: oklch(0.45 0.03 180);
+  /* Muted - Subtle backgrounds */
+  --muted: oklch(0.955 0.005 250);
+  --muted-foreground: oklch(0.45 0.015 250);
 
-  /* Accent - Emerald */
-  --accent: oklch(0.75 0.17 165);
-  --accent-foreground: oklch(0.145 0.03 180);
+  /* Accent - Muted Amber (Authority, Important actions) */
+  --accent: oklch(0.75 0.08 55);
+  --accent-foreground: oklch(0.20 0.02 55);
 
-  /* Destructive */
-  --destructive: oklch(0.55 0.22 25);
+  /* Success - Muted Green (Only for positive states) */
+  --success: oklch(0.55 0.12 155);
+  --success-foreground: oklch(0.985 0.002 155);
 
-  /* Borders & Inputs */
-  --border: oklch(0.90 0.015 180);
-  --input: oklch(0.90 0.015 180);
-  --ring: oklch(0.55 0.15 175);
+  /* Warning - Muted Amber */
+  --warning: oklch(0.70 0.12 70);
+  --warning-foreground: oklch(0.20 0.03 70);
 
-  /* Charts - Teal/Emerald spectrum */
-  --chart-1: oklch(0.55 0.15 175);
-  --chart-2: oklch(0.65 0.17 165);
-  --chart-3: oklch(0.45 0.12 180);
-  --chart-4: oklch(0.70 0.15 155);
-  --chart-5: oklch(0.60 0.13 185);
+  /* Destructive - Muted Red */
+  --destructive: oklch(0.55 0.18 25);
+
+  /* Borders & Inputs - Subtle, refined */
+  --border: oklch(0.91 0.005 250);
+  --input: oklch(0.91 0.005 250);
+  --ring: oklch(0.45 0.085 250);
+
+  /* Charts - Professional color spectrum */
+  --chart-1: oklch(0.45 0.085 250);  /* Slate blue */
+  --chart-2: oklch(0.55 0.10 200);   /* Steel blue */
+  --chart-3: oklch(0.50 0.08 280);   /* Violet */
+  --chart-4: oklch(0.60 0.10 55);    /* Amber */
+  --chart-5: oklch(0.55 0.12 155);   /* Green */
 
   /* Sidebar */
-  --sidebar: oklch(0.98 0.005 180);
-  --sidebar-foreground: oklch(0.145 0.03 180);
-  --sidebar-primary: oklch(0.55 0.15 175);
-  --sidebar-primary-foreground: oklch(0.985 0.002 180);
-  --sidebar-accent: oklch(0.955 0.02 175);
-  --sidebar-accent-foreground: oklch(0.25 0.05 175);
-  --sidebar-border: oklch(0.90 0.015 180);
-  --sidebar-ring: oklch(0.55 0.15 175);
+  --sidebar: oklch(0.98 0.003 250);
+  --sidebar-foreground: oklch(0.145 0.015 250);
+  --sidebar-primary: oklch(0.45 0.085 250);
+  --sidebar-primary-foreground: oklch(0.985 0.002 250);
+  --sidebar-accent: oklch(0.955 0.008 250);
+  --sidebar-accent-foreground: oklch(0.25 0.02 250);
+  --sidebar-border: oklch(0.91 0.005 250);
+  --sidebar-ring: oklch(0.45 0.085 250);
 }
 
 /* =================================================================
-   EMERALD/TEAL THEME - Dark Mode (Primary)
+   PROFESSIONAL SLATE THEME - Dark Mode
+
+   Dark mode optimized for:
+   - Reduced eye strain with soft blacks (not pure black)
+   - Subtle blue undertone for consistency
+   - Higher chroma on interactive elements for visibility
+   - Excellent contrast while remaining comfortable
    ================================================================= */
 .dark {
-  /* Backgrounds - Deep slate with teal undertone */
-  --background: oklch(0.13 0.02 180);
-  --foreground: oklch(0.95 0.01 180);
+  /* Backgrounds - Soft black with cool undertone (not pure black) */
+  --background: oklch(0.14 0.015 250);
+  --foreground: oklch(0.93 0.008 250);
 
-  /* Cards & Surfaces - Elevated with glassmorphism support */
-  --card: oklch(0.18 0.025 180);
-  --card-foreground: oklch(0.95 0.01 180);
-  --popover: oklch(0.18 0.025 180);
-  --popover-foreground: oklch(0.95 0.01 180);
+  /* Cards & Surfaces - Slightly elevated */
+  --card: oklch(0.18 0.018 250);
+  --card-foreground: oklch(0.93 0.008 250);
+  --popover: oklch(0.18 0.018 250);
+  --popover-foreground: oklch(0.93 0.008 250);
 
-  /* Primary - Bright Teal */
-  --primary: oklch(0.70 0.15 175);
-  --primary-foreground: oklch(0.13 0.02 180);
+  /* Primary - Brighter Slate Blue for visibility */
+  --primary: oklch(0.65 0.10 250);
+  --primary-foreground: oklch(0.14 0.015 250);
 
   /* Secondary */
-  --secondary: oklch(0.22 0.03 180);
-  --secondary-foreground: oklch(0.95 0.01 180);
+  --secondary: oklch(0.22 0.015 250);
+  --secondary-foreground: oklch(0.93 0.008 250);
 
   /* Muted */
-  --muted: oklch(0.25 0.025 180);
-  --muted-foreground: oklch(0.65 0.03 180);
+  --muted: oklch(0.25 0.012 250);
+  --muted-foreground: oklch(0.60 0.015 250);
 
-  /* Accent - Mint/Cyan */
-  --accent: oklch(0.75 0.15 170);
-  --accent-foreground: oklch(0.13 0.02 180);
+  /* Accent - Muted Amber */
+  --accent: oklch(0.70 0.10 55);
+  --accent-foreground: oklch(0.14 0.015 250);
+
+  /* Success - Muted Green */
+  --success: oklch(0.60 0.12 155);
+  --success-foreground: oklch(0.14 0.015 155);
+
+  /* Warning */
+  --warning: oklch(0.70 0.12 70);
+  --warning-foreground: oklch(0.14 0.015 70);
 
   /* Destructive */
-  --destructive: oklch(0.65 0.22 25);
+  --destructive: oklch(0.60 0.18 25);
 
   /* Borders & Inputs */
-  --border: oklch(0.28 0.025 180);
-  --input: oklch(0.25 0.03 180);
-  --ring: oklch(0.70 0.15 175);
+  --border: oklch(0.28 0.015 250);
+  --input: oklch(0.25 0.018 250);
+  --ring: oklch(0.65 0.10 250);
 
   /* Charts */
-  --chart-1: oklch(0.70 0.15 175);
-  --chart-2: oklch(0.75 0.17 165);
-  --chart-3: oklch(0.65 0.12 185);
-  --chart-4: oklch(0.80 0.14 155);
-  --chart-5: oklch(0.60 0.18 170);
+  --chart-1: oklch(0.65 0.10 250);
+  --chart-2: oklch(0.60 0.12 200);
+  --chart-3: oklch(0.55 0.10 280);
+  --chart-4: oklch(0.70 0.12 55);
+  --chart-5: oklch(0.60 0.12 155);
 
   /* Sidebar */
-  --sidebar: oklch(0.15 0.025 180);
-  --sidebar-foreground: oklch(0.95 0.01 180);
-  --sidebar-primary: oklch(0.70 0.15 175);
-  --sidebar-primary-foreground: oklch(0.13 0.02 180);
-  --sidebar-accent: oklch(0.22 0.03 180);
-  --sidebar-accent-foreground: oklch(0.95 0.01 180);
-  --sidebar-border: oklch(0.28 0.025 180);
-  --sidebar-ring: oklch(0.70 0.15 175);
+  --sidebar: oklch(0.16 0.018 250);
+  --sidebar-foreground: oklch(0.93 0.008 250);
+  --sidebar-primary: oklch(0.65 0.10 250);
+  --sidebar-primary-foreground: oklch(0.14 0.015 250);
+  --sidebar-accent: oklch(0.22 0.015 250);
+  --sidebar-accent-foreground: oklch(0.93 0.008 250);
+  --sidebar-border: oklch(0.28 0.015 250);
+  --sidebar-ring: oklch(0.65 0.10 250);
 }
 
 /* =================================================================
@@ -170,6 +204,10 @@
 
   body {
     @apply bg-background text-foreground antialiased;
+    /* Improved text rendering */
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 
   /* Smooth scrolling */
@@ -185,6 +223,16 @@
   /* Selection color */
   ::selection {
     @apply bg-primary/20 text-foreground;
+  }
+
+  /* Improved heading hierarchy */
+  h1, h2, h3, h4, h5, h6 {
+    @apply tracking-tight font-semibold;
+  }
+
+  /* Better paragraph readability */
+  p {
+    @apply leading-relaxed;
   }
 }
 
@@ -204,33 +252,46 @@
     @apply bg-card/60 backdrop-blur-lg border border-border/40;
   }
 
-  /* Glow effects */
+  /* Glow effects - Updated to slate blue */
   .glow-sm {
-    box-shadow: 0 0 20px -5px oklch(0.70 0.15 175 / 0.3);
+    box-shadow: 0 0 20px -5px oklch(0.55 0.10 250 / 0.25);
   }
 
   .glow-md {
-    box-shadow: 0 0 40px -10px oklch(0.70 0.15 175 / 0.4);
+    box-shadow: 0 0 40px -10px oklch(0.55 0.10 250 / 0.35);
   }
 
   .glow-lg {
-    box-shadow: 0 0 60px -15px oklch(0.70 0.15 175 / 0.5);
+    box-shadow: 0 0 60px -15px oklch(0.55 0.10 250 / 0.45);
+  }
+
+  /* Subtle shadow for cards */
+  .shadow-soft {
+    box-shadow:
+      0 1px 2px oklch(0.20 0.02 250 / 0.05),
+      0 4px 12px oklch(0.20 0.02 250 / 0.08);
+  }
+
+  .shadow-soft-lg {
+    box-shadow:
+      0 2px 4px oklch(0.20 0.02 250 / 0.04),
+      0 8px 24px oklch(0.20 0.02 250 / 0.10);
   }
 
   /* Gradient text */
   .text-gradient {
-    @apply bg-clip-text text-transparent bg-gradient-to-r from-primary via-accent to-primary;
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-primary to-primary/70;
   }
 
-  /* Animated gradient background */
+  /* Animated gradient background - Professional blue spectrum */
   .bg-gradient-animated {
     background: linear-gradient(
       135deg,
-      oklch(0.55 0.15 175) 0%,
-      oklch(0.65 0.17 165) 25%,
-      oklch(0.70 0.15 170) 50%,
-      oklch(0.65 0.17 165) 75%,
-      oklch(0.55 0.15 175) 100%
+      oklch(0.45 0.085 250) 0%,
+      oklch(0.50 0.095 260) 25%,
+      oklch(0.55 0.10 240) 50%,
+      oklch(0.50 0.095 260) 75%,
+      oklch(0.45 0.085 250) 100%
     );
     background-size: 400% 400%;
     animation: gradient-shift 8s ease infinite;
@@ -252,7 +313,7 @@
     background: linear-gradient(
       90deg,
       transparent 0%,
-      oklch(1 0 0 / 0.1) 50%,
+      oklch(1 0 0 / 0.08) 50%,
       transparent 100%
     );
     animation: shimmer 2s infinite;
@@ -263,17 +324,17 @@
     100% { transform: translateX(100%); }
   }
 
-  /* Pulse glow animation */
+  /* Pulse glow animation - Updated to slate */
   .pulse-glow {
     animation: pulse-glow 2s ease-in-out infinite;
   }
 
   @keyframes pulse-glow {
     0%, 100% {
-      box-shadow: 0 0 20px -5px oklch(0.70 0.15 175 / 0.3);
+      box-shadow: 0 0 20px -5px oklch(0.55 0.10 250 / 0.25);
     }
     50% {
-      box-shadow: 0 0 30px -5px oklch(0.70 0.15 175 / 0.5);
+      box-shadow: 0 0 30px -5px oklch(0.55 0.10 250 / 0.40);
     }
   }
 
