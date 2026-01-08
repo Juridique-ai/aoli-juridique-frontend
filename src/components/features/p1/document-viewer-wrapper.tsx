@@ -2,9 +2,8 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Document, Page, pdfjs } from "react-pdf";
-import { Loader2, ZoomIn, ZoomOut, ChevronUp, ChevronDown, Search } from "lucide-react";
+import { Loader2, ZoomIn, ZoomOut, ChevronUp, ChevronDown, Search, Home } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
@@ -134,44 +133,57 @@ export default function DocumentViewerWrapper({
     }
   };
 
+  const goToTop = () => {
+    if (scrollAreaRef.current) {
+      scrollAreaRef.current.scrollTo({ top: 0, behavior: "smooth" });
+      setCurrentPage(1);
+    }
+  };
+
   return (
-    <div className="h-full flex flex-col">
+    <div className="h-full flex flex-col overflow-hidden">
       {/* Toolbar */}
-      <div className="flex items-center justify-between px-3 py-2 border-b border-border bg-muted/30 shrink-0">
-        <div className="flex items-center gap-1">
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={zoomOut} disabled={scale <= 0.5}>
-            <ZoomOut className="h-4 w-4" />
+      <div className="flex items-center justify-between px-2 py-1.5 border-b border-border bg-muted/30 shrink-0">
+        <div className="flex items-center gap-0.5">
+          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={goToTop} title="Retour au début">
+            <Home className="h-3.5 w-3.5" />
           </Button>
-          <span className="text-xs text-muted-foreground w-12 text-center">{Math.round(scale * 100)}%</span>
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={zoomIn} disabled={scale >= 2.5}>
-            <ZoomIn className="h-4 w-4" />
+          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={zoomOut} disabled={scale <= 0.5}>
+            <ZoomOut className="h-3.5 w-3.5" />
+          </Button>
+          <span className="text-xs text-muted-foreground w-10 text-center">{Math.round(scale * 100)}%</span>
+          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={zoomIn} disabled={scale >= 2.5}>
+            <ZoomIn className="h-3.5 w-3.5" />
           </Button>
         </div>
 
-        <div className="flex items-center gap-1">
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => goToPage(currentPage - 1)} disabled={currentPage <= 1}>
-            <ChevronUp className="h-4 w-4" />
+        <div className="flex items-center gap-0.5">
+          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => goToPage(currentPage - 1)} disabled={currentPage <= 1}>
+            <ChevronUp className="h-3.5 w-3.5" />
           </Button>
-          <span className="text-xs text-muted-foreground">
-            {currentPage} / {numPages || "..."}
+          <span className="text-xs text-muted-foreground min-w-[40px] text-center">
+            {currentPage}/{numPages || "..."}
           </span>
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => goToPage(currentPage + 1)} disabled={currentPage >= numPages}>
-            <ChevronDown className="h-4 w-4" />
+          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => goToPage(currentPage + 1)} disabled={currentPage >= numPages}>
+            <ChevronDown className="h-3.5 w-3.5" />
           </Button>
         </div>
       </div>
 
       {/* Search indicator */}
       {searchText && (
-        <div className="px-3 py-1.5 bg-primary/5 border-b border-border flex items-center gap-2 shrink-0">
+        <div className="px-2 py-1 bg-primary/5 border-b border-border flex items-center gap-1.5 shrink-0">
           <Search className="h-3 w-3 text-primary" />
-          <span className="text-xs text-primary">Recherche: "{searchText}"</span>
+          <span className="text-xs text-primary truncate">"{searchText}"</span>
         </div>
       )}
 
-      {/* Document */}
-      <ScrollArea className="flex-1" ref={scrollAreaRef}>
-        <div className="p-4 flex flex-col items-center gap-4">
+      {/* Document - native scroll */}
+      <div
+        ref={scrollAreaRef}
+        className="flex-1 overflow-auto"
+      >
+        <div className="p-3 flex flex-col items-center gap-3">
           {isLoading && (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -210,7 +222,7 @@ export default function DocumentViewerWrapper({
             ))}
           </Document>
         </div>
-      </ScrollArea>
+      </div>
 
       {/* CSS for highlighting */}
       <style jsx global>{`
