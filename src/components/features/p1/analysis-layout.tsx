@@ -11,6 +11,9 @@ interface AnalysisLayoutContextValue {
   openPDF: (scrollToClause?: string) => void;
   closePDF: () => void;
   activeClause: string | null;
+  isFullscreen: boolean;
+  openFullscreen: () => void;
+  closeFullscreen: () => void;
 }
 
 const AnalysisLayoutContext = createContext<AnalysisLayoutContextValue | null>(null);
@@ -41,6 +44,7 @@ export function AnalysisLayout({
   const [isPDFOpen, setIsPDFOpen] = useState(false);
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [activeClause, setActiveClause] = useState<string | null>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   const openPDF = (scrollToClause?: string) => {
     if (scrollToClause) {
@@ -55,8 +59,16 @@ export function AnalysisLayout({
     setActiveClause(null);
   };
 
+  const openFullscreen = () => {
+    setIsFullscreen(true);
+  };
+
+  const closeFullscreen = () => {
+    setIsFullscreen(false);
+  };
+
   return (
-    <AnalysisLayoutContext.Provider value={{ isPDFOpen, openPDF, closePDF, activeClause }}>
+    <AnalysisLayoutContext.Provider value={{ isPDFOpen, openPDF, closePDF, activeClause, isFullscreen, openFullscreen, closeFullscreen }}>
       <div className={cn("min-h-screen bg-gradient-to-b from-background to-muted/20", className)}>
         {/* Sticky Header */}
         <div className="sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border">

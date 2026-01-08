@@ -7,6 +7,7 @@ import { AnalysisHeader } from "@/components/features/p1/analysis-header";
 import { AnalysisResults } from "@/components/features/p1/analysis-results";
 import { NavigationPanel } from "@/components/features/p1/navigation-panel";
 import { PDFDrawer } from "@/components/features/p1/pdf-drawer";
+import { PDFFullscreenModal } from "@/components/features/p1/pdf-fullscreen-modal";
 import { Button } from "@/components/ui/button";
 import { FileText, Sparkles } from "lucide-react";
 import { endpoints } from "@/lib/api/endpoints";
@@ -261,10 +262,16 @@ export default function P1Page() {
         />
       }
       pdfViewer={
-        <PDFDrawer
-          documentFile={documentFile}
-          contractContent={contractContent}
-        />
+        <>
+          <PDFDrawer
+            documentFile={documentFile}
+            contractContent={contractContent}
+          />
+          <PDFFullscreenModal
+            documentFile={documentFile}
+            contractContent={contractContent}
+          />
+        </>
       }
     />
   );

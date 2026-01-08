@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import dynamic from "next/dynamic";
-import { X, Loader2, FileText } from "lucide-react";
+import { X, Loader2, FileText, Maximize2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAnalysisLayout } from "./analysis-layout";
@@ -66,7 +66,7 @@ function HighlightedText({ content, searchText }: { content: string; searchText:
 }
 
 export function PDFDrawer({ documentFile, contractContent }: PDFDrawerProps) {
-  const { closePDF, activeClause } = useAnalysisLayout();
+  const { closePDF, activeClause, openFullscreen } = useAnalysisLayout();
 
   return (
     <div className="rounded-2xl border border-border bg-card shadow-lg overflow-hidden h-[calc(100vh-180px)] flex flex-col">
@@ -74,18 +74,30 @@ export function PDFDrawer({ documentFile, contractContent }: PDFDrawerProps) {
       <div className="px-4 py-3 border-b border-border bg-muted/30 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-2">
           <FileText className="h-4 w-4 text-primary" />
-          <h3 className="font-medium text-sm text-foreground truncate max-w-[200px]">
+          <h3 className="font-medium text-sm text-foreground truncate max-w-[150px]">
             {documentFile?.fileName || "Document"}
           </h3>
         </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={closePDF}
-          className="h-8 w-8 p-0"
-        >
-          <X className="h-4 w-4" />
-        </Button>
+        <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={openFullscreen}
+            className="h-8 w-8 p-0"
+            title="Plein écran"
+          >
+            <Maximize2 className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={closePDF}
+            className="h-8 w-8 p-0"
+            title="Fermer"
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
 
       {/* Document Viewer */}
