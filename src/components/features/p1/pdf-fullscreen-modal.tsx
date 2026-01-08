@@ -110,7 +110,7 @@ export function PDFFullscreenModal({ documentFile, contractContent }: PDFFullscr
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
             onClick={closeFullscreen}
-            className="fixed inset-0 bg-black/80 z-[100]"
+            className="fixed inset-0 bg-black/80 z-[9998]"
           />
 
           {/* Modal */}
@@ -119,7 +119,7 @@ export function PDFFullscreenModal({ documentFile, contractContent }: PDFFullscr
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
             transition={{ duration: 0.2, ease: "easeOut" }}
-            className="fixed inset-4 md:inset-8 lg:inset-12 z-[101] bg-background rounded-2xl shadow-2xl overflow-hidden flex flex-col"
+            className="fixed inset-4 md:inset-8 lg:inset-12 z-[9999] bg-background rounded-2xl shadow-2xl overflow-hidden flex flex-col"
           >
             {/* Header */}
             <div className="px-6 py-4 border-b border-border bg-muted/30 flex items-center justify-between shrink-0">
