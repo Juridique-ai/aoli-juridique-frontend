@@ -29,11 +29,35 @@ export default function DocumentViewerWrapper({
 }: DocumentViewerWrapperProps) {
   const [numPages, setNumPages] = useState<number>(0);
   const [currentPage, setCurrentPage] = useState(1);
-  const [scale, setScale] = useState(1.0);
+  const [scale, setScale] = useState(0.5); // Start smaller, will auto-fit
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const [containerWidth, setContainerWidth] = useState<number>(0);
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
   const pageRefs = useRef<Map<number, HTMLDivElement>>(new Map());
+
+  // Measure container width for auto-fit
+  useEffect(() => {
+    const updateWidth = () => {
+      if (scrollAreaRef.current) {
+        const width = scrollAreaRef.current.clientWidth - 32; // minus padding
+        setContainerWidth(width);
+      }
+    };
+
+    updateWidth();
+    window.addEventListener("resize", updateWidth);
+    return () => window.removeEventListener("resize", updateWidth);
+  }, []);
+
+  // Auto-fit scale based on container width (assuming ~612pt PDF width)
+  useEffect(() => {
+    if (containerWidth > 0 && !isLoading) {
+      const pdfWidth = 612; // Standard letter/A4 width in points
+      const fitScale = Math.min(containerWidth / pdfWidth, 1.2);
+      setScale(Math.round(fitScale * 10) / 10); // Round to 1 decimal
+    }
+  }, [containerWidth, isLoading]);
 
   const onDocumentLoadSuccess = ({ numPages }: { numPages: number }) => {
     setNumPages(numPages);
@@ -49,14 +73,14 @@ export default function DocumentViewerWrapper({
 
   // Highlight search text in text layer
   const highlightText = useCallback(() => {
-    if (!searchText || !containerRef.current) return;
+    if (!searchText || !scrollAreaRef.current) return;
 
     // Clear previous highlights
-    const existingHighlights = containerRef.current.querySelectorAll(".search-highlight");
+    const existingHighlights = scrollAreaRef.current.querySelectorAll(".search-highlight");
     existingHighlights.forEach((el) => el.classList.remove("search-highlight"));
 
     // Find and highlight matching text
-    const textLayers = containerRef.current.querySelectorAll(".react-pdf__Page__textContent span");
+    const textLayers = scrollAreaRef.current.querySelectorAll(".react-pdf__Page__textContent span");
     let foundMatch = false;
     let matchedPage = 0;
 
@@ -146,7 +170,7 @@ export default function DocumentViewerWrapper({
       )}
 
       {/* Document */}
-      <ScrollArea className="flex-1" ref={containerRef}>
+      <ScrollArea className="flex-1" ref={scrollAreaRef}>
         <div className="p-4 flex flex-col items-center gap-4">
           {isLoading && (
             <div className="flex items-center justify-center py-12">
