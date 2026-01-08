@@ -67,7 +67,7 @@ function Section({ title, icon: Icon, badge, badgeVariant = "default", children,
             transition={{ duration: 0.2 }}
             className="overflow-hidden"
           >
-            <div className="px-6 pb-4 text-sm">
+            <div className="px-6 pt-2 pb-6 text-sm">
               {children}
             </div>
           </motion.div>
@@ -318,14 +318,53 @@ export function FinalResult({ results, isStreaming = false }: FinalResultProps) 
               {!!fairness.overallAssessment && (
                 <p className="text-muted-foreground mb-3">{String(fairness.overallAssessment)}</p>
               )}
-              {!!fairness.imbalances && (
+              {!!fairness.imbalances && Array.isArray(fairness.imbalances) && fairness.imbalances.length > 0 && (
                 <div className="space-y-2">
-                  {(fairness.imbalances as Array<{clause?: string; issue?: string; favoredParty?: string}>).map((imb, i) => (
-                    <div key={i} className="p-2 bg-muted/50 rounded-lg">
-                      <p className="font-medium text-sm">{imb.clause}</p>
-                      <p className="text-muted-foreground text-sm">{imb.issue}</p>
+                  {(fairness.imbalances as Array<{area?: string; clause?: string; description?: string; issue?: string; favoredParty?: string; severity?: string}>).map((imb, i) => (
+                    <div key={i} className="p-3 bg-muted/50 rounded-lg">
+                      <div className="flex items-center justify-between mb-1">
+                        <p className="font-medium text-sm">{imb.area || imb.clause || `Déséquilibre ${i + 1}`}</p>
+                        {imb.severity && (
+                          <span className={cn(
+                            "text-xs px-2 py-0.5 rounded-full",
+                            imb.severity === "high" && "bg-destructive/10 text-destructive",
+                            imb.severity === "medium" && "bg-amber-500/10 text-amber-600",
+                            imb.severity === "low" && "bg-muted text-muted-foreground",
+                          )}>
+                            {imb.severity}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-muted-foreground text-sm">{imb.description || imb.issue}</p>
+                      {imb.favoredParty && (
+                        <p className="text-xs text-muted-foreground mt-1">Partie favorisée: {imb.favoredParty}</p>
+                      )}
                     </div>
                   ))}
+                </div>
+              )}
+              {/* Symmetry Analysis */}
+              {!!fairness.symmetryAnalysis && (
+                <div className="mt-4 space-y-2">
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">Analyse de symétrie</p>
+                  {(fairness.symmetryAnalysis as Record<string, string>).obligations && (
+                    <div className="p-2 bg-muted/30 rounded-lg">
+                      <p className="text-xs text-muted-foreground">Obligations</p>
+                      <p className="text-sm">{(fairness.symmetryAnalysis as Record<string, string>).obligations}</p>
+                    </div>
+                  )}
+                  {(fairness.symmetryAnalysis as Record<string, string>).penalties && (
+                    <div className="p-2 bg-muted/30 rounded-lg">
+                      <p className="text-xs text-muted-foreground">Pénalités</p>
+                      <p className="text-sm">{(fairness.symmetryAnalysis as Record<string, string>).penalties}</p>
+                    </div>
+                  )}
+                  {(fairness.symmetryAnalysis as Record<string, string>).termination && (
+                    <div className="p-2 bg-muted/30 rounded-lg">
+                      <p className="text-xs text-muted-foreground">Résiliation</p>
+                      <p className="text-sm">{(fairness.symmetryAnalysis as Record<string, string>).termination}</p>
+                    </div>
+                  )}
                 </div>
               )}
             </Section>

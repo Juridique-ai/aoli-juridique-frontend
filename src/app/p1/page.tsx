@@ -2,10 +2,13 @@
 
 import { useP1Store, type P1Phase } from "@/stores/p1-store";
 import { ContractUpload } from "@/components/features/p1/contract-upload";
-import { ThinkingIndicator } from "@/components/features/p1/thinking-indicator";
-import { FinalResult } from "@/components/features/p1/final-result";
+import { AnalysisLayout } from "@/components/features/p1/analysis-layout";
+import { AnalysisHeader } from "@/components/features/p1/analysis-header";
+import { AnalysisResults } from "@/components/features/p1/analysis-results";
+import { NavigationPanel } from "@/components/features/p1/navigation-panel";
+import { PDFDrawer } from "@/components/features/p1/pdf-drawer";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, FileSearch, FileText, Sparkles } from "lucide-react";
+import { FileText, Sparkles } from "lucide-react";
 import { endpoints } from "@/lib/api/endpoints";
 import { P1_DEMO_CONTRACT } from "@/lib/demo-data";
 import { isDevEnvironment } from "@/lib/utils";
@@ -113,7 +116,6 @@ export default function P1Page() {
                 case "content":
                   if (event.phase && event.status === "completed" && event.content) {
                     setPhaseResult(event.phase as P1Phase, event.content);
-                    // Move to next phase for display
                     const currentIndex = ALL_PHASES.indexOf(event.phase);
                     if (currentIndex < ALL_PHASES.length - 1) {
                       setCurrentPhase(ALL_PHASES[currentIndex + 1]);
@@ -178,14 +180,11 @@ export default function P1Page() {
 
   const handleDemo = () => {
     setDocument(P1_DEMO_CONTRACT, null);
-    // Auto-start analysis with demo content
     handleAnalyze(P1_DEMO_CONTRACT);
   };
 
-  // Auto-start analysis when document is uploaded
   const handleDocumentUpload = (content: string, file: { fileName: string; fileType: string; uri: string } | null) => {
     setDocument(content, file);
-    // Auto-start analysis with uploaded content
     handleAnalyze(content);
   };
 
@@ -226,73 +225,47 @@ export default function P1Page() {
     );
   }
 
-  // Analysis screen
+  // Analysis screen - New 60/40 Layout
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
-      <div className="container py-8 max-w-5xl animate-fade-in">
-        {/* Compact Header */}
-        <div className="mb-8 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-primary/10 text-primary">
-              <FileText className="h-5 w-5" />
+    <AnalysisLayout
+      header={
+        <AnalysisHeader
+          documentFileName={documentFile?.fileName}
+          isAnalyzing={isAnalyzing}
+          currentPhase={currentPhase}
+          completedCount={completedPhases.length}
+          totalCount={ALL_PHASES.length}
+          progressMessage={progressMessage}
+          currentTool={currentTool}
+          phaseResults={phaseResults}
+          onReset={reset}
+        />
+      }
+      results={
+        <>
+          {/* Error */}
+          {error && (
+            <div className="mb-6 p-4 bg-destructive/10 text-destructive rounded-xl border border-destructive/20 text-center">
+              {error}
             </div>
-            <div>
-              <h1 className="text-lg font-semibold">Analyse de Contrat</h1>
-              {documentFile && (
-                <p className="text-sm text-muted-foreground">{documentFile.fileName}</p>
-              )}
-            </div>
-          </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={reset}
-            className="text-muted-foreground hover:text-foreground"
-          >
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Nouveau
-          </Button>
-        </div>
-
-        {/* Error */}
-        {error && (
-          <div className="mb-8 p-4 bg-destructive/10 text-destructive rounded-xl border border-destructive/20 text-center">
-            {error}
-          </div>
-        )}
-
-        {/* Thinking Indicator - shows during analysis */}
-        {isAnalyzing && !isComplete && (
-          <ThinkingIndicator
-            currentPhase={currentPhase}
-            completedCount={completedPhases.length}
-            totalCount={ALL_PHASES.length}
-            progressMessage={progressMessage}
-            currentTool={currentTool}
-          />
-        )}
-
-        {/* Progressive Results - show as phases complete */}
-        {completedPhases.length > 0 && (
-          <div className={isComplete ? "" : "mt-8"}>
-            <FinalResult results={phaseResults} isStreaming={!isComplete} />
-          </div>
-        )}
-
-        {/* New Analysis button when complete */}
-        {isComplete && (
-          <div className="mt-8 text-center">
-            <Button
-              variant="outline"
-              onClick={reset}
-              className="hover:bg-primary/10 hover:text-primary hover:border-primary/30"
-            >
-              <FileSearch className="h-4 w-4 mr-2" />
-              Analyser un autre contrat
-            </Button>
-          </div>
-        )}
-      </div>
-    </div>
+          )}
+          <AnalysisResults results={phaseResults} isStreaming={isAnalyzing && !isComplete} />
+        </>
+      }
+      navigation={
+        <NavigationPanel
+          phaseResults={phaseResults}
+          completedPhases={completedPhases}
+          isAnalyzing={isAnalyzing}
+          hasDocument={!!documentFile}
+        />
+      }
+      pdfViewer={
+        <PDFDrawer
+          documentFile={documentFile}
+          contractContent={contractContent}
+        />
+      }
+    />
   );
 }

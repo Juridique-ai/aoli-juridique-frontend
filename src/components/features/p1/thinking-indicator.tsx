@@ -36,9 +36,9 @@ export function ThinkingIndicator({
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="w-full"
+      className="w-full sticky top-4 z-40"
     >
-      <div className="rounded-2xl border border-border bg-card p-6 shadow-lg">
+      <div className="rounded-2xl border border-border bg-card/95 backdrop-blur-sm p-6 shadow-lg">
         {/* Progress bar */}
         <div className="mb-6">
           <div className="flex justify-between text-sm text-muted-foreground mb-2">
