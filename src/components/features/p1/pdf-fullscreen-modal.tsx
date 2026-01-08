@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import dynamic from "next/dynamic";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Loader2, FileText } from "lucide-react";
@@ -74,6 +75,12 @@ function PlainTextViewer({ content, searchText }: { content: string; searchText:
 
 export function PDFFullscreenModal({ documentFile, contractContent }: PDFFullscreenModalProps) {
   const { isFullscreen, closeFullscreen, activeClause } = useAnalysisLayout();
+  const [mounted, setMounted] = useState(false);
+
+  // Mount portal on client
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Close on escape key
   useEffect(() => {
@@ -99,7 +106,11 @@ export function PDFFullscreenModal({ documentFile, contractContent }: PDFFullscr
     };
   }, [isFullscreen]);
 
-  return (
+  // Don't render on server
+  if (!mounted) return null;
+
+  // Render modal in portal at document body level
+  return createPortal(
     <AnimatePresence>
       {isFullscreen && (
         <>
@@ -160,6 +171,7 @@ export function PDFFullscreenModal({ documentFile, contractContent }: PDFFullscr
           </motion.div>
         </>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body
   );
 }
