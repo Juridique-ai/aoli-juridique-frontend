@@ -75,33 +75,32 @@ export function AnalysisLayout({
             {/* Right: Navigation / PDF Drawer (40%) */}
             <div className="w-[40%] relative">
               <div className="sticky top-[120px]">
-                <AnimatePresence mode="wait">
-                  {!isPDFOpen && (
-                    <motion.div
-                      key="navigation"
-                      initial={{ opacity: 0, x: 20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0, x: 20 }}
-                      transition={{ duration: 0.2 }}
-                    >
-                      {navigation}
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-                <AnimatePresence>
-                  {isPDFOpen && (
-                    <motion.div
-                      key="pdf"
-                      initial={{ opacity: 0, x: 40 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0, x: 40 }}
-                      transition={{ duration: 0.25, ease: "easeOut" }}
-                      className="absolute inset-0"
-                    >
-                      {pdfViewer}
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+                {/* Navigation - animate out when PDF opens */}
+                <motion.div
+                  initial={false}
+                  animate={{
+                    opacity: isPDFOpen ? 0 : 1,
+                    x: isPDFOpen ? 20 : 0,
+                    pointerEvents: isPDFOpen ? "none" : "auto"
+                  }}
+                  transition={{ duration: 0.2 }}
+                >
+                  {navigation}
+                </motion.div>
+
+                {/* PDF Viewer - always mounted, animate visibility */}
+                <motion.div
+                  initial={false}
+                  animate={{
+                    opacity: isPDFOpen ? 1 : 0,
+                    x: isPDFOpen ? 0 : 40,
+                    pointerEvents: isPDFOpen ? "auto" : "none"
+                  }}
+                  transition={{ duration: 0.25, ease: "easeOut" }}
+                  className="absolute inset-0"
+                >
+                  {pdfViewer}
+                </motion.div>
               </div>
             </div>
           </div>
@@ -161,28 +160,23 @@ export function AnalysisLayout({
           )}
         </AnimatePresence>
 
-        {/* Mobile: PDF Bottom Sheet */}
-        <AnimatePresence>
-          {isPDFOpen && (
-            <>
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="lg:hidden fixed inset-0 bg-black/50 z-40"
-              />
-              <motion.div
-                initial={{ y: "100%" }}
-                animate={{ y: 0 }}
-                exit={{ y: "100%" }}
-                transition={{ type: "spring", damping: 25, stiffness: 300 }}
-                className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-background rounded-t-2xl shadow-xl h-[85vh]"
-              >
-                {pdfViewer}
-              </motion.div>
-            </>
+        {/* Mobile: PDF Bottom Sheet - always mounted for performance */}
+        <motion.div
+          initial={false}
+          animate={{ opacity: isPDFOpen ? 1 : 0 }}
+          className={cn(
+            "lg:hidden fixed inset-0 bg-black/50 z-40",
+            !isPDFOpen && "pointer-events-none"
           )}
-        </AnimatePresence>
+        />
+        <motion.div
+          initial={false}
+          animate={{ y: isPDFOpen ? 0 : "100%" }}
+          transition={{ type: "spring", damping: 25, stiffness: 300 }}
+          className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-background rounded-t-2xl shadow-xl h-[85vh]"
+        >
+          {pdfViewer}
+        </motion.div>
       </div>
     </AnalysisLayoutContext.Provider>
   );

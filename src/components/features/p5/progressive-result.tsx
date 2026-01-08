@@ -16,6 +16,7 @@ import {
   CheckCircle,
   AlertTriangle,
   Loader2,
+  ExternalLink,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -87,6 +88,7 @@ function Section({ title, icon: Icon, badge, badgeVariant = "default", children,
 
 export function ProgressiveResult({ results, isStreaming = false }: ProgressiveResultProps) {
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
 
   // Extract data from phase results
   const metadata = results.metadata as Record<string, unknown> | null;
@@ -141,6 +143,31 @@ export function ProgressiveResult({ results, isStreaming = false }: ProgressiveR
     toast.success("Document téléchargé");
   };
 
+  const handleGeneratePdf = async () => {
+    if (!fullText) return;
+    setIsGeneratingPdf(true);
+    setPdfUrl(null);
+
+    try {
+      const response = await fetch("/api/generate-pdf", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: fullText, style: "legal" }),
+      });
+      const data = await response.json();
+      if (data.success && data.pdfUrl) {
+        setPdfUrl(data.pdfUrl);
+        toast.success("PDF généré avec succès");
+      } else {
+        toast.error(data.error || "Échec de la génération du PDF");
+      }
+    } catch {
+      toast.error("Erreur lors de la génération du PDF");
+    } finally {
+      setIsGeneratingPdf(false);
+    }
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -174,6 +201,19 @@ export function ProgressiveResult({ results, isStreaming = false }: ProgressiveR
                   <Button variant="outline" size="sm" onClick={handleDownload}>
                     <Download className="h-4 w-4" />
                   </Button>
+                  <Button
+                    variant="default"
+                    size="sm"
+                    onClick={handleGeneratePdf}
+                    disabled={isGeneratingPdf}
+                  >
+                    {isGeneratingPdf ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <FileText className="h-4 w-4" />
+                    )}
+                    <span className="ml-1">PDF</span>
+                  </Button>
                 </div>
               )}
             </div>
@@ -188,6 +228,23 @@ export function ProgressiveResult({ results, isStreaming = false }: ProgressiveR
               <div className="bg-muted/50 rounded-lg p-6 font-mono text-xs whitespace-pre-wrap leading-relaxed max-h-96 overflow-y-auto">
                 {fullText}
               </div>
+              {/* PDF Ready */}
+              {pdfUrl && (
+                <div className="flex items-center justify-between gap-3 mt-4 p-4 bg-green-50 dark:bg-green-950/30 rounded-lg border border-green-200 dark:border-green-800">
+                  <div className="flex items-center gap-2">
+                    <FileText className="h-5 w-5 text-green-600" />
+                    <span className="text-sm font-medium text-green-800 dark:text-green-200">
+                      PDF généré avec succès
+                    </span>
+                  </div>
+                  <Button variant="default" size="sm" asChild>
+                    <a href={pdfUrl} target="_blank" rel="noopener noreferrer">
+                      <ExternalLink className="h-4 w-4 mr-1" />
+                      Ouvrir le PDF
+                    </a>
+                  </Button>
+                </div>
+              )}
             </Section>
           )}
 

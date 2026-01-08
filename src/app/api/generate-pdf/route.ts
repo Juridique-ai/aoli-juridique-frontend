@@ -16,7 +16,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Step 1: Submit job with instructions for proper formatting
+    // Step 1: Submit job - pass content directly with legal style
+    // yet.report API only accepts: content (required) and style (optional)
     const submitResponse = await fetch(`${YET_REPORT_API}/generate`, {
       method: "POST",
       headers: {
@@ -25,8 +26,7 @@ export async function POST(request: NextRequest) {
       },
       body: JSON.stringify({
         content,
-        prompt: "Generate a formal legal letter PDF. Use the same language as the content provided. Use left-to-right text alignment (LTR). Do not include any placeholder brackets like [Name] or [Address]. The content is ready to send as-is. Use professional legal letter formatting.",
-        alignment: "left",
+        style: "legal",
       }),
     });
 

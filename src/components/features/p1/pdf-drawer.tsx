@@ -1,7 +1,8 @@
 "use client";
 
+import { useMemo } from "react";
 import dynamic from "next/dynamic";
-import { X, Loader2, FileText, ExternalLink } from "lucide-react";
+import { X, Loader2, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAnalysisLayout } from "./analysis-layout";
@@ -30,6 +31,40 @@ const DocumentViewerWrapper = dynamic(
   }
 );
 
+// Component to highlight text in plain text content
+function HighlightedText({ content, searchText }: { content: string; searchText: string | null }) {
+  const highlightedContent = useMemo(() => {
+    if (!searchText) return content;
+
+    const searchLower = searchText.toLowerCase();
+    const words = searchLower.split(/\s+/).filter(w => w.length > 2);
+
+    if (words.length === 0) return content;
+
+    // Create regex pattern for all words
+    const pattern = new RegExp(`(${words.map(w => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})`, 'gi');
+    const parts = content.split(pattern);
+
+    return parts.map((part, i) => {
+      const isMatch = words.some(w => part.toLowerCase().includes(w));
+      if (isMatch) {
+        return (
+          <mark key={i} className="bg-primary/30 text-foreground rounded px-0.5">
+            {part}
+          </mark>
+        );
+      }
+      return part;
+    });
+  }, [content, searchText]);
+
+  return (
+    <pre className="whitespace-pre-wrap text-sm font-mono leading-relaxed text-muted-foreground">
+      {highlightedContent}
+    </pre>
+  );
+}
+
 export function PDFDrawer({ documentFile, contractContent }: PDFDrawerProps) {
   const { closePDF, activeClause } = useAnalysisLayout();
 
@@ -53,25 +88,16 @@ export function PDFDrawer({ documentFile, contractContent }: PDFDrawerProps) {
         </Button>
       </div>
 
-      {/* Active clause indicator */}
-      {activeClause && (
-        <div className="px-4 py-2 bg-primary/5 border-b border-border shrink-0">
-          <p className="text-xs text-primary flex items-center gap-1">
-            <ExternalLink className="h-3 w-3" />
-            Clause référencée: <span className="font-medium">{activeClause}</span>
-          </p>
-        </div>
-      )}
-
       {/* Document Viewer */}
       <div className="flex-1 min-h-0">
         {documentFile ? (
-          <DocumentViewerWrapper documentFile={documentFile} />
+          <DocumentViewerWrapper
+            documentFile={documentFile}
+            searchText={activeClause}
+          />
         ) : (
           <ScrollArea className="h-full p-4">
-            <pre className="whitespace-pre-wrap text-sm font-mono leading-relaxed text-muted-foreground">
-              {contractContent}
-            </pre>
+            <HighlightedText content={contractContent} searchText={activeClause} />
           </ScrollArea>
         )}
       </div>
