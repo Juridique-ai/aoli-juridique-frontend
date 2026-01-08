@@ -73,135 +73,140 @@ export function AnalysisHeader({
 
   return (
     <div className="container max-w-7xl py-3 lg:py-4">
+      {/* Row 1: Title + Filename + New button */}
       <div className="flex items-center justify-between gap-2 lg:gap-4">
-        {/* Left: Title and file info */}
         <div className="flex items-center gap-2 lg:gap-3 min-w-0">
           <div className="p-1.5 lg:p-2 rounded-lg bg-primary/10 text-primary shrink-0">
             <FileText className="h-4 w-4 lg:h-5 lg:w-5" />
           </div>
           <div className="min-w-0">
-            <h1 className="text-base lg:text-lg font-semibold truncate">Analyse de Contrat</h1>
+            <h1 className="text-base lg:text-lg font-semibold">Analyse de Contrat</h1>
             {documentFileName && (
-              <p className="text-xs lg:text-sm text-muted-foreground truncate max-w-[150px] lg:max-w-none">{documentFileName}</p>
+              <p className="text-xs lg:text-sm text-muted-foreground truncate max-w-[250px] lg:max-w-[400px]">{documentFileName}</p>
             )}
           </div>
         </div>
-
-        {/* Center: Progress or Metadata - hidden on mobile when complete */}
-        <div className="hidden sm:block flex-1 max-w-xl mx-4 lg:mx-8">
-          <AnimatePresence mode="wait">
-            {isAnalyzing && !isComplete && (
-              <motion.div
-                key="progress"
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 10 }}
-                className="space-y-2"
-              >
-                <div className="flex items-center gap-3">
-                  <Loader2 className="h-4 w-4 text-primary animate-spin" />
-                  <div className="flex-1">
-                    <div className="h-2 bg-muted rounded-full overflow-hidden">
-                      <motion.div
-                        className="h-full bg-primary rounded-full"
-                        initial={{ width: 0 }}
-                        animate={{ width: `${progress}%` }}
-                        transition={{ duration: 0.3 }}
-                      />
-                    </div>
-                  </div>
-                  <span className="text-sm text-muted-foreground w-12 text-right">
-                    {completedCount}/{totalCount}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="font-medium text-foreground">
-                    {phaseTitle || "Initialisation..."}
-                  </span>
-                  {currentTool && (
-                    <span className="flex items-center gap-1 text-xs text-primary/70">
-                      <Wrench className="h-3 w-3" />
-                      {currentTool}
-                    </span>
-                  )}
-                </div>
-                {progressMessage && (
-                  <p className="text-xs text-muted-foreground truncate">{progressMessage}</p>
-                )}
-              </motion.div>
-            )}
-            {isComplete && (
-              <motion.div
-                key="metadata"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="flex items-center gap-6"
-              >
-                <div className={cn(
-                  "flex items-center gap-2 px-3 py-1.5 rounded-full",
-                  riskInfo.variant === "success" && "bg-primary/10",
-                  riskInfo.variant === "warning" && "bg-amber-500/10",
-                  riskInfo.variant === "error" && "bg-destructive/10",
-                )}>
-                  {riskInfo.variant === "success" && <CheckCircle className="h-4 w-4 text-primary" />}
-                  {riskInfo.variant === "warning" && <AlertCircle className="h-4 w-4 text-amber-600" />}
-                  {riskInfo.variant === "error" && <AlertTriangle className="h-4 w-4 text-destructive" />}
-                  <span className={cn(
-                    "text-sm font-medium",
-                    riskInfo.variant === "success" && "text-primary",
-                    riskInfo.variant === "warning" && "text-amber-600",
-                    riskInfo.variant === "error" && "text-destructive",
-                  )}>
-                    {riskInfo.level}
-                  </span>
-                </div>
-                <div className="flex items-center gap-4 text-sm">
-                  <div className="flex items-center gap-1.5">
-                    <span className="font-bold text-foreground">{risks.length}</span>
-                    <span className="text-muted-foreground">Risques</span>
-                  </div>
-                  <div className="w-px h-4 bg-border" />
-                  <div className="flex items-center gap-1.5">
-                    <span className="font-bold text-foreground">{recommendations.length}</span>
-                    <span className="text-muted-foreground">Actions</span>
-                  </div>
-                  {validity && (
-                    <>
-                      <div className="w-px h-4 bg-border" />
-                      <div className="flex items-center gap-1.5">
-                        <span className={cn(
-                          "font-bold",
-                          Boolean(validity.isValid) ? "text-primary" : "text-destructive"
-                        )}>
-                          {Boolean(validity.isValid) ? "Valide" : "Invalide"}
-                        </span>
-                      </div>
-                    </>
-                  )}
-                </div>
-                {metadata?.contractType ? (
-                  <>
-                    <div className="w-px h-4 bg-border" />
-                    <span className="text-sm text-muted-foreground">
-                      {String(metadata.contractType)}
-                    </span>
-                  </>
-                ) : null}
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-
-        {/* Right: New analysis button */}
         <Button
           variant="ghost"
           size="sm"
           onClick={onReset}
-          className="text-muted-foreground hover:text-foreground"
+          className="text-muted-foreground hover:text-foreground shrink-0"
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
           Nouveau
         </Button>
+      </div>
+
+      {/* Row 2: Progress or Metadata */}
+      <div className="mt-3 pt-3 border-t border-border/50">
+        <AnimatePresence mode="wait">
+          {isAnalyzing && !isComplete && (
+            <motion.div
+              key="progress"
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 10 }}
+              className="space-y-2"
+            >
+              <div className="flex items-center gap-3">
+                <Loader2 className="h-4 w-4 text-primary animate-spin" />
+                <div className="flex-1">
+                  <div className="h-2 bg-muted rounded-full overflow-hidden">
+                    <motion.div
+                      className="h-full bg-primary rounded-full"
+                      initial={{ width: 0 }}
+                      animate={{ width: `${progress}%` }}
+                      transition={{ duration: 0.3 }}
+                    />
+                  </div>
+                </div>
+                <span className="text-sm text-muted-foreground w-12 text-right">
+                  {completedCount}/{totalCount}
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="font-medium text-foreground">
+                  {phaseTitle || "Initialisation..."}
+                </span>
+                {currentTool && (
+                  <span className="flex items-center gap-1 text-xs text-primary/70">
+                    <Wrench className="h-3 w-3" />
+                    {currentTool}
+                  </span>
+                )}
+              </div>
+              {progressMessage && (
+                <p className="text-xs text-muted-foreground truncate">{progressMessage}</p>
+              )}
+            </motion.div>
+          )}
+          {isComplete && (
+            <motion.div
+              key="metadata"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="flex flex-wrap items-center gap-3 lg:gap-6"
+            >
+              {/* Risk badge */}
+              <div className={cn(
+                "flex items-center gap-2 px-3 py-1.5 rounded-full",
+                riskInfo.variant === "success" && "bg-primary/10",
+                riskInfo.variant === "warning" && "bg-amber-500/10",
+                riskInfo.variant === "error" && "bg-destructive/10",
+              )}>
+                {riskInfo.variant === "success" && <CheckCircle className="h-4 w-4 text-primary" />}
+                {riskInfo.variant === "warning" && <AlertCircle className="h-4 w-4 text-amber-600" />}
+                {riskInfo.variant === "error" && <AlertTriangle className="h-4 w-4 text-destructive" />}
+                <span className={cn(
+                  "text-sm font-medium",
+                  riskInfo.variant === "success" && "text-primary",
+                  riskInfo.variant === "warning" && "text-amber-600",
+                  riskInfo.variant === "error" && "text-destructive",
+                )}>
+                  {riskInfo.level}
+                </span>
+              </div>
+
+              <div className="w-px h-5 bg-border hidden sm:block" />
+
+              {/* Stats */}
+              <div className="flex items-center gap-4 text-sm">
+                <div className="flex items-center gap-1.5">
+                  <span className="font-bold text-foreground">{risks.length}</span>
+                  <span className="text-muted-foreground">Risques</span>
+                </div>
+                <div className="w-px h-4 bg-border" />
+                <div className="flex items-center gap-1.5">
+                  <span className="font-bold text-foreground">{recommendations.length}</span>
+                  <span className="text-muted-foreground">Actions</span>
+                </div>
+                {validity && (
+                  <>
+                    <div className="w-px h-4 bg-border" />
+                    <div className="flex items-center gap-1.5">
+                      <span className={cn(
+                        "font-bold",
+                        Boolean(validity.isValid) ? "text-primary" : "text-destructive"
+                      )}>
+                        {Boolean(validity.isValid) ? "Valide" : "Invalide"}
+                      </span>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* Contract type */}
+              {metadata?.contractType ? (
+                <>
+                  <div className="w-px h-5 bg-border hidden sm:block" />
+                  <span className="text-sm text-muted-foreground">
+                    {String(metadata.contractType)}
+                  </span>
+                </>
+              ) : null}
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );
