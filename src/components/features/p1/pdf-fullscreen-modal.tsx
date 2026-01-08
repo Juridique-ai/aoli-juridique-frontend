@@ -103,23 +103,23 @@ export function PDFFullscreenModal({ documentFile, contractContent }: PDFFullscr
     <AnimatePresence>
       {isFullscreen && (
         <>
-          {/* Backdrop - below sticky header */}
+          {/* Backdrop - covers everything */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
             onClick={closeFullscreen}
-            className="fixed top-[70px] left-0 right-0 bottom-0 bg-black/80 z-[9998]"
+            className="fixed inset-0 bg-black/80 z-[9998]"
           />
 
-          {/* Modal - positioned below sticky header */}
+          {/* Modal - centered over everything */}
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
             transition={{ duration: 0.2, ease: "easeOut" }}
-            className="fixed top-[90px] left-4 right-4 bottom-4 md:left-8 md:right-8 md:bottom-8 lg:left-12 lg:right-12 lg:bottom-12 z-[9999] bg-background rounded-2xl shadow-2xl overflow-hidden flex flex-col"
+            className="fixed inset-4 md:inset-8 lg:inset-12 z-[9999] bg-background rounded-2xl shadow-2xl overflow-hidden flex flex-col"
           >
             {/* Header */}
             <div className="px-6 py-4 border-b border-border bg-muted/30 flex items-center justify-between shrink-0">
